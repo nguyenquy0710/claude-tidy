@@ -71,6 +71,11 @@ class ExplorerView(tb.Frame):
 
         actions = tb.Frame(right)
         actions.grid(row=2, column=0, sticky="w", pady=(0, 6))
+        self.select_all_var = tk.BooleanVar(value=False)
+        self.select_all_chk = tb.Checkbutton(actions, text="Chọn tất cả", state="disabled",
+                                             variable=self.select_all_var,
+                                             command=self._toggle_select_all)
+        self.select_all_chk.pack(side="left", padx=(0, 12))
         self.delete_checked_btn = tb.Button(actions, text="Xoá đã chọn (0)", state="disabled",
                                             command=self._delete_checked, bootstyle="danger")
         self.delete_checked_btn.pack(side="left", padx=(0, 6))
@@ -170,10 +175,22 @@ class ExplorerView(tb.Frame):
     def _update_buttons(self) -> None:
         p = self.selected
         n = len(self.session_tree.checked_ids())
+        total = len(p.sessions) if p is not None else 0
         self.delete_checked_btn.configure(text=f"Xoá đã chọn ({n})",
                                           state="normal" if n else "disabled")
         self.delete_all_btn.configure(
             state="normal" if p is not None and (p.sessions or p.worktrees) else "disabled")
+        self.select_all_chk.configure(state="normal" if total else "disabled")
+        # Reflect actual selection state without re-triggering the command
+        # callback (which would try to check/uncheck everything again).
+        self.select_all_var.set(total > 0 and n == total)
+
+    def _toggle_select_all(self) -> None:
+        if self.select_all_var.get():
+            self.session_tree.check_all()
+        else:
+            self.session_tree.uncheck_all()
+        self._update_buttons()
 
     def _delete_single(self, session_id: str) -> None:
         plan = build_session_plan(PlanMode.SINGLE, self.selected, [session_id])

@@ -33,6 +33,7 @@ class CacheView(tb.Frame):
                 ).pack(side="left")
         tb.Button(header, text="⟳", width=3, command=self.rescan, bootstyle="link"
                  ).pack(side="right")
+        self.busy_label = tb.Label(header, text="Đang quét…", bootstyle="secondary")
 
         self.warning = tb.Label(
             self, bootstyle="inverse-warning", wraplength=700,
@@ -51,12 +52,14 @@ class CacheView(tb.Frame):
         self.tree.pack(fill="both", expand=True)
 
     def rescan(self) -> None:
+        self.busy_label.pack(side="right", padx=(0, 6))
         run_in_background(self._dispatcher, self._worker, on_done=self._apply)
 
     def _worker(self) -> tuple[list[CacheGroup], bool]:
         return scan_cache(self.state.paths), is_claude_desktop_running()
 
     def _apply(self, result: tuple[list[CacheGroup], bool]) -> None:
+        self.busy_label.pack_forget()
         self.groups, running = result
         if running:
             self.warning.pack(fill="x", pady=(0, 6), before=self.delete_btn)
@@ -98,6 +101,7 @@ class IndexView(tb.Frame):
         tb.Label(header, text="Index session mồ côi", font=("", 13, "bold")).pack(side="left")
         tb.Button(header, text="⟳", width=3, command=self.rescan, bootstyle="link"
                  ).pack(side="right")
+        self.busy_label = tb.Label(header, text="Đang quét…", bootstyle="secondary")
         tb.Label(self, text="File sessions/<pid>.json của process đã tắt hoặc PID đã bị tái "
                             "sử dụng. Mỗi file cần xác nhận riêng.", bootstyle="secondary"
                 ).pack(anchor="w", pady=(2, 6))
@@ -116,12 +120,14 @@ class IndexView(tb.Frame):
         self.tree.pack(fill="both", expand=True)
 
     def rescan(self) -> None:
+        self.busy_label.pack(side="right", padx=(0, 6))
         run_in_background(self._dispatcher, self._worker, on_done=self._apply)
 
     def _worker(self) -> list[IndexEntry]:
         return self.state.new_detector().orphan_entries()
 
     def _apply(self, orphans: list[IndexEntry]) -> None:
+        self.busy_label.pack_forget()
         self.entries = {e.path.name: e for e in orphans}
         self.tree.clear()
         for e in orphans:

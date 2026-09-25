@@ -38,11 +38,15 @@ def run_delete_flow(
     dialog = tb.Toplevel(title=f"Xem trước: {plan.label}", transient=root)
     dialog.grab_set()
     dialog.geometry("640x480")
+    dialog.minsize(480, 320)
+    dialog.resizable(True, True)
 
     total_var = tk.StringVar()
     tb.Label(dialog, textvariable=total_var, wraplength=600).pack(fill="x", padx=10, pady=(10, 4))
 
-    body = tb.Frame(dialog)
+    # A "delete all" preview can list hundreds of sessions — a fixed-height
+    # plain Frame would silently cut them off with no way to see the rest.
+    body = tb.ScrolledFrame(dialog, autohide=True)
     body.pack(fill="both", expand=True, padx=10)
 
     if pv.will_delete:
@@ -69,10 +73,12 @@ def run_delete_flow(
             tb.Label(body, text=f"• {t.label} — {reason}", font=("", 9)).pack(anchor="w")
 
     name_var = tk.StringVar()
+    name_entry: tb.Entry | None = None
     if typed_confirmation is not None:
         tb.Label(dialog, text=f'Nhập "{typed_confirmation}" để xác nhận xoá tất cả'
                 ).pack(anchor="w", padx=10, pady=(8, 0))
-        tb.Entry(dialog, textvariable=name_var).pack(fill="x", padx=10)
+        name_entry = tb.Entry(dialog, textvariable=name_var)
+        name_entry.pack(fill="x", padx=10)
 
     actions = tb.Frame(dialog)
     actions.pack(fill="x", padx=10, pady=10)
@@ -80,6 +86,8 @@ def run_delete_flow(
     tb.Button(actions, text="Huỷ", command=dialog.destroy, bootstyle="secondary"
              ).pack(side="right", padx=(0, 6))
     confirm_btn.pack(side="right")
+
+    dialog.bind("<Escape>", lambda _e: dialog.destroy())
 
     def refresh_summary(*_args) -> None:
         confirmed.clear()
@@ -102,6 +110,10 @@ def run_delete_flow(
         _run_with_progress(root, dispatcher, state, plan, set(confirmed), on_done)
 
     confirm_btn.configure(command=start)
+    dialog.bind("<Return>", lambda _e: start() if str(confirm_btn["state"]) == "normal" else None)
+    # Jump straight into the name field when one is required — the whole
+    # point of typing the project name is friction, not an extra click first.
+    (name_entry or dialog).focus_set()
 
 
 def _run_with_progress(root, dispatcher, state, plan, confirmed, on_done) -> None:
@@ -123,6 +135,14 @@ def _run_with_progress(root, dispatcher, state, plan, confirmed, on_done) -> Non
     cancel_btn = tb.Button(dialog, text="Huỷ (dừng sau mục hiện tại)", command=on_cancel,
                            bootstyle="secondary")
     cancel_btn.pack(pady=10)
+
+    # The background delete keeps running even if this window disappears, so
+    # the native close button (X) must not just destroy it — that would let
+    # the user believe deletion stopped when it hasn't. Route it through the
+    # same cancel path as the visible button.
+    dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+    dialog.bind("<Escape>", lambda _e: on_cancel())
+    dialog.focus_set()
 
     def on_progress(p: Progress) -> None:
         # Called from the worker thread inside execute(); must only touch Tk
@@ -158,7 +178,12 @@ def _show_report(root: tk.Misc, result: DeleteResult) -> None:
     dialog = tb.Toplevel(title="Kết quả", transient=root)
     dialog.grab_set()
     dialog.geometry("640x420")
-    body = tb.Frame(dialog)
+    dialog.minsize(480, 300)
+    dialog.resizable(True, True)
+    dialog.bind("<Escape>", lambda _e: dialog.destroy())
+    # A report listing hundreds of skipped/failed items needs to scroll —
+    # same reasoning as the preview dialog above.
+    body = tb.ScrolledFrame(dialog, autohide=True)
     body.pack(fill="both", expand=True, padx=10, pady=10)
 
     if result.error:
@@ -191,3 +216,5 @@ def _show_report(root: tk.Misc, result: DeleteResult) -> None:
 
     tb.Button(dialog, text="Đóng", command=dialog.destroy, bootstyle="primary"
              ).pack(pady=10)
+    dialog.bind("<Return>", lambda _e: dialog.destroy())
+    dialog.focus_set()
