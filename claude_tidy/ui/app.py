@@ -25,6 +25,10 @@ def _enable_dpi_awareness() -> None:
 def build_app() -> tb.Window:
     _enable_dpi_awareness()
     root = tb.Window(themename="cosmo", title="Claude Tidy", size=(1200, 800))
+    root.minsize(900, 600)
+    # Applies to every Treeview in the app (project tree, session/cache/index
+    # lists, the delete-flow preview) — the ttkbootstrap default is cramped.
+    tb.Style().configure("Treeview", rowheight=28)
     dispatcher = Dispatcher()
     state = AppState.load()
 

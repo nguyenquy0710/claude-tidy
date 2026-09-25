@@ -35,27 +35,52 @@ class ExplorerView(tb.Frame):
         self.risk: dict[str, RiskLevel] = {}
         self.selected: Project | None = None
         self._item_to_project: dict[str, Project] = {}
+        self._row_index = 0
 
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
 
-        left = tb.Frame(self)
-        left.grid(row=0, column=0, sticky="nsw", padx=(0, 8))
-        header = tb.Frame(left)
-        header.pack(fill="x")
-        tb.Label(header, text="Projects", font=("", 10, "bold")).pack(side="left")
-        self.busy_label = tb.Label(header, text="Đang quét…", bootstyle="secondary")
-        tb.Button(header, text="⟳", width=3, command=self.rescan, bootstyle="link"
-                 ).pack(side="right")
+        left = tb.Frame(self, width=310)
+        left.grid(row=0, column=0, sticky="nsw", padx=(0, 10))
+        left.grid_propagate(False)
+        left.rowconfigure(2, weight=1)
+        left.columnconfigure(0, weight=1)
 
-        self.project_tree = tb.Treeview(left, columns=("info",), show="tree headings",
-                                        height=28)
+        header = tb.Frame(left)
+        header.grid(row=0, column=0, sticky="ew")
+        tb.Label(header, text="📁 Projects", font=("", 11, "bold")).pack(side="left")
+        self.busy_label = tb.Label(header, text="Đang quét…", bootstyle="secondary")
+        refresh_btn = tb.Button(header, text="⟳", width=3, command=self.rescan,
+                                bootstyle="link")
+        refresh_btn.pack(side="right")
+        tb.ToolTip(refresh_btn, text="Quét lại danh sách project")
+
+        tb.Separator(left).grid(row=1, column=0, sticky="ew", pady=(6, 6))
+
+        tree_frame = tb.Frame(left)
+        tree_frame.grid(row=2, column=0, sticky="nsew")
+        tree_frame.rowconfigure(0, weight=1)
+        tree_frame.columnconfigure(0, weight=1)
+
+        self.project_tree = tb.Treeview(tree_frame, columns=("info",), show="tree headings",
+                                        bootstyle="primary")
         self.project_tree.heading("#0", text="Project")
-        self.project_tree.heading("info", text="")
-        self.project_tree.column("#0", width=200)
-        self.project_tree.column("info", width=140)
-        self.project_tree.pack(fill="both", expand=True)
+        self.project_tree.heading("info", text="Chi tiết")
+        self.project_tree.column("#0", width=185)
+        self.project_tree.column("info", width=100, anchor="e")
+        self.project_tree.grid(row=0, column=0, sticky="nsew")
         self.project_tree.bind("<<TreeviewSelect>>", self._on_select_project)
+
+        project_vsb = tb.Scrollbar(tree_frame, orient="vertical",
+                                   command=self.project_tree.yview)
+        self.project_tree.configure(yscrollcommand=project_vsb.set)
+        project_vsb.grid(row=0, column=1, sticky="ns")
+
+        # "odd" only sets background (zebra striping) and the worktree tags
+        # only set foreground, so a row can safely carry both at once.
+        self.project_tree.tag_configure("odd", background="#f3f5f7")
+        self.project_tree.tag_configure("worktree", foreground="#6c757d")
+        self.project_tree.tag_configure("worktree-missing", foreground="#dc3545")
 
         right = tb.Frame(self)
         right.grid(row=0, column=1, sticky="nsew")
@@ -129,6 +154,7 @@ class ExplorerView(tb.Frame):
     def _render_projects(self) -> None:
         self.project_tree.delete(*self.project_tree.get_children())
         self._item_to_project.clear()
+        self._row_index = 0
         for p in sorted(self.projects, key=lambda p: p.display_name.lower()):
             self._insert_project(p, parent="")
             for w in p.worktrees:
@@ -136,10 +162,22 @@ class ExplorerView(tb.Frame):
 
     def _insert_project(self, p: Project, parent: str) -> None:
         sub = f"{len(p.sessions)} · {human_size(p.size_bytes)}"
-        if p.worktree_name and not p.worktree_exists:
-            sub += " · đã xoá"
-        self.project_tree.insert(parent, "end", iid=p.slug, text=p.display_name,
-                                 values=(sub,), open=True)
+        tags = ["odd"] if self._row_index % 2 else []
+        self._row_index += 1
+        if p.worktree_name:
+            if p.worktree_exists:
+                icon = "🌿"
+                tags.append("worktree")
+            else:
+                # Full explanation goes in the (wider) session panel header
+                # once selected — this narrow sidebar column only has room
+                # for a glance-able marker, not the phrase "đã xoá".
+                icon = "⚠️"
+                tags.append("worktree-missing")
+        else:
+            icon = "📁"
+        self.project_tree.insert(parent, "end", iid=p.slug, text=f"{icon} {p.display_name}",
+                                 values=(sub,), open=True, tags=tuple(tags))
         self._item_to_project[p.slug] = p
         if self.selected is not None and self.selected.slug == p.slug:
             self.project_tree.selection_set(p.slug)
@@ -160,8 +198,10 @@ class ExplorerView(tb.Frame):
             self._update_buttons()
             return
         self.header_var.set(p.display_name)
-        self.subheader_var.set(f"{p.cwd or p.slug} · {len(p.sessions)} session · "
-                               f"{human_size(p.size_bytes)}")
+        subheader = f"{p.cwd or p.slug} · {len(p.sessions)} session · {human_size(p.size_bytes)}"
+        if p.worktree_name and not p.worktree_exists:
+            subheader += " · ⚠️ thư mục worktree này không còn tồn tại trên đĩa"
+        self.subheader_var.set(subheader)
         for s in p.sessions:
             label, tag = BADGE[self.risk.get(s.session_id, RiskLevel.WARNING)]
             when = (datetime.fromtimestamp(s.last_write).strftime("%Y-%m-%d %H:%M")

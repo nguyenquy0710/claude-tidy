@@ -36,9 +36,17 @@ class CheckTreeview(tb.Frame):
         self.show_checkboxes = show_checkboxes
         self._checked: set[str] = set()
         self._checkable: set[str] = set()
+        self._row_count = 0
 
+        # One consistent look app-wide (colored heading bar, zebra striping)
+        # for every list in the app — Explorer's session panel, Cache, Index,
+        # and the delete-flow preview all go through this one widget.
+        kw.setdefault("bootstyle", "primary")
         all_columns = (CHECK_COLUMN, *columns) if show_checkboxes else tuple(columns)
         self.tree = tb.Treeview(self, columns=all_columns, show="tree headings", **kw)
+        # Only sets background, so it composes with a caller's own foreground
+        # tags (e.g. explorer.py's risk-level colors) without conflict.
+        self.tree.tag_configure("odd", background="#f3f5f7")
         if show_checkboxes:
             self.tree.heading(CHECK_COLUMN, text="")
             self.tree.column(CHECK_COLUMN, width=32, anchor="center", stretch=False)
@@ -69,7 +77,9 @@ class CheckTreeview(tb.Frame):
         open_: bool = False,
     ) -> str:
         row_values = (UNCHECKED if checkable else "", *values) if self.show_checkboxes else values
-        self.tree.insert(parent, "end", iid=iid, text=text, values=row_values, tags=tags,
+        all_tags = (*tags, "odd") if self._row_count % 2 else tags
+        self._row_count += 1
+        self.tree.insert(parent, "end", iid=iid, text=text, values=row_values, tags=all_tags,
                          open=open_)
         if checkable:
             self._checkable.add(iid)
@@ -79,6 +89,7 @@ class CheckTreeview(tb.Frame):
         self.tree.delete(*self.tree.get_children())
         self._checked.clear()
         self._checkable.clear()
+        self._row_count = 0
 
     def configure_tag(self, tag: str, **opts) -> None:
         self.tree.tag_configure(tag, **opts)
