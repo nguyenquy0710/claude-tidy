@@ -2,7 +2,7 @@
 type: refactor
 complexity: high
 status: planning
-related_issues: [QUYIT-741]
+related_issues: [QUYIT-741, QUYIT-774, QUYIT-775, QUYIT-776, QUYIT-777, QUYIT-778, QUYIT-779, QUYIT-780, QUYIT-781, QUYIT-782, QUYIT-783, QUYIT-784]
 related_prs: []
 estimated_hours: ~160 (≈ 20 person-days, gồm buffer)
 ---
@@ -146,6 +146,17 @@ Task ID đánh tiếp từ **T33** (T01–T32 đã dùng, nhiều task đã gắ
 
 - T17 Restore: thêm một trang HTML + method `js_api`, effort gần như không đổi.
 - T19 System Tray: pywebview chiếm main thread → `pystray` phải chạy trên thread riêng và phối hợp với vòng đời cửa sổ. Có thể **+0.5–1d** so với 1.5d gốc.
+
+### Jira (tạo 2026-09-25)
+
+Epic [QUYIT-741](https://nhquydev.atlassian.net/browse/QUYIT-741). Tất cả 11 issue trong **QUYIT Sprint 34** (id 145), fix version **Tháng 9/2026** (id 10050), labels `claude-tidy, mvp, pywebview, w-m1|w-m2|w-m3` — theo lựa chọn của chủ dự án, không rải theo milestone. Lưu ý: tổng 16 ngày công vượt sức chứa một sprint và timeline plan (~5 tuần) vượt quá tháng 9, nên cần dời phần còn lại khi đóng sprint/version. T31 (QUYIT-772) được gộp vào T42.
+
+| Task | Jira | Task | Jira | Task | Jira |
+|---|---|---|---|---|---|
+| T33 | QUYIT-774 | T37 | QUYIT-778 | T41 | QUYIT-782 |
+| T34 | QUYIT-775 | T38 | QUYIT-779 | T42 | QUYIT-783 |
+| T35 | QUYIT-776 | T39 | QUYIT-780 | T43 | QUYIT-784 |
+| T36 | QUYIT-777 | T40 | QUYIT-781 | | |
 
 ### Tổng hợp effort
 
