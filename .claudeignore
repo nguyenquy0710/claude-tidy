@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# Flet build output
+/build/windows/
+
+# Test fixtures with generated fake trees (keep the fixture *code*, not throwaway output)
+tests/fixtures/**/tmp_*
+
+# Local backups if ever produced inside the repo during manual testing
+*.zip
