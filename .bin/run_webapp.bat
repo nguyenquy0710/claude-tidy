@@ -1,6 +1,14 @@
 @echo off
 setlocal
-cd /d %~dp0
+
+REM Resolve repo root as the parent of this script directory
+set "SCRIPT_DIR=%~dp0"
+for %%I in ("%SCRIPT_DIR%\..") do set "REPO_ROOT=%%~fI"
+
+cd /d "%REPO_ROOT%" || (
+    echo [ERROR] Failed to change directory to repo root: "%REPO_ROOT%".
+    exit /b 1
+)
 
 :: Claude Tidy is a Windows desktop app (ttkbootstrap/Tkinter), not a webapp —
 :: this launcher just activates the venv and starts the GUI.
