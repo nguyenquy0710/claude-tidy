@@ -114,7 +114,6 @@ class ExplorerView(tb.Frame):
             on_change=lambda _iid, _v: self._update_buttons(),
             on_activate=self._delete_single,
         )
-        self.session_tree.tree.column("#0", width=0, stretch=False)
         for tag, color in _TAG_FG.items():
             self.session_tree.configure_tag(tag, foreground=color)
         self.session_tree.grid(row=3, column=0, sticky="nsew")
@@ -210,6 +209,7 @@ class ExplorerView(tb.Frame):
             self.session_tree.insert_row("", s.session_id, "",
                                          (label, s.title or "(không có tiêu đề)", info),
                                          tags=(tag,))
+        self.session_tree.render()
         self._update_buttons()
 
     def _update_buttons(self) -> None:

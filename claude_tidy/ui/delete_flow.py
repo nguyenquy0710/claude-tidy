@@ -62,10 +62,10 @@ def run_delete_flow(
         confirm_tree = CheckTreeview(body, columns=("label", "size"),
                                      headings={"label": "Mục", "size": "Dung lượng"},
                                      height=min(6, len(pv.needs_confirmation)))
-        confirm_tree.tree.column("#0", width=0, stretch=False)
         confirm_tree.pack(fill="x", pady=(0, 4))
         for t in pv.needs_confirmation:
             confirm_tree.insert_row("", t.id, "", (t.label, human_size(t.size_bytes)))
+        confirm_tree.render()
 
     if pv.skipped:
         tb.Label(body, text="Sẽ bỏ qua", bootstyle="danger").pack(anchor="w", pady=(8, 2))

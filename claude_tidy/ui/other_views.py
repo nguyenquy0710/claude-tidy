@@ -48,7 +48,6 @@ class CacheView(tb.Frame):
                                   headings={"name": "Nhóm", "path": "Vị trí",
                                            "size": "Dung lượng"},
                                   on_change=lambda _iid, _v: self._sync())
-        self.tree.tree.column("#0", width=0, stretch=False)
         self.tree.pack(fill="both", expand=True)
 
     def rescan(self) -> None:
@@ -68,6 +67,7 @@ class CacheView(tb.Frame):
         self.tree.clear()
         for g in self.groups:
             self.tree.insert_row("", g.name, "", (g.name, str(g.root), human_size(g.size_bytes)))
+        self.tree.render()
         self._sync()
 
     def _sync(self) -> None:
@@ -137,6 +137,7 @@ class IndexView(tb.Frame):
             self.tree.insert_row("", e.path.name, "",
                                  (f"{title} — PID {e.pid}", e.cwd or "?", updated),
                                  checkable=False)
+        self.tree.render()
         self._sync()
 
     def _sync(self) -> None:

@@ -1,11 +1,22 @@
-"""Shared Treeview-with-checkboxes widget used by Explorer, Cache, Index and
-the delete-flow preview dialog — one implementation instead of four ad-hoc
-Tk checkbox hacks.
+"""Shared datatable widget used by Explorer, Cache, Index and the delete-flow
+preview dialog — one implementation instead of four ad-hoc grids.
 
-`ttk.Treeview` has no native checkbox column, so this fakes one with a
-Unicode glyph in a dedicated column and a click/Space handler that toggles
-it. Nesting (project -> worktree) is native Treeview parent/child, so the
-expand/collapse arrow comes for free.
+Built on ttkbootstrap's ``Tableview`` (a real datatable: click-to-sort
+columns, an optional search box, and zebra striping that stays correct after
+a re-sort) rather than a bare ``ttk.Treeview``. ``Tableview`` has no native
+checkbox column, so this fakes one the same way the earlier
+``ttk.Treeview``-only version did: a Unicode glyph in a dedicated first
+column, toggled by clicking that column or pressing Space on a selection —
+using ``Tableview``'s own internal ``ttk.Treeview`` (its public ``.view``
+attribute) for hit-testing, since that part really is still a plain
+Treeview underneath.
+
+``Tableview`` has no concept of hierarchy (it's a flat grid), which is fine:
+every real caller already passes an empty ``parent`` — none of the four
+usages here ever needed nesting. (The one tree that genuinely needs
+parent/child nesting, Explorer's *project* list with worktrees grouped under
+their parent, stays a plain ``ttk.Treeview`` for that reason — see
+`explorer.py`.)
 """
 
 from __future__ import annotations
@@ -16,7 +27,7 @@ import ttkbootstrap as tb
 
 UNCHECKED = "☐"  # ☐
 CHECKED = "☑"  # ☑
-CHECK_COLUMN = "_check"
+_IID_COLUMN = "__iid__"  # hidden column Tableview's iid_field is bound to
 
 
 class CheckTreeview(tb.Frame):
@@ -28,6 +39,7 @@ class CheckTreeview(tb.Frame):
         on_change: Callable[[str, bool], None] | None = None,
         on_activate: Callable[[str], None] | None = None,
         show_checkboxes: bool = True,
+        searchable: bool = False,
         **kw,
     ) -> None:
         super().__init__(master)
@@ -36,29 +48,25 @@ class CheckTreeview(tb.Frame):
         self.show_checkboxes = show_checkboxes
         self._checked: set[str] = set()
         self._checkable: set[str] = set()
-        self._row_count = 0
 
-        # One consistent look app-wide (colored heading bar, zebra striping)
-        # for every list in the app — Explorer's session panel, Cache, Index,
-        # and the delete-flow preview all go through this one widget.
-        kw.setdefault("bootstyle", "primary")
-        all_columns = (CHECK_COLUMN, *columns) if show_checkboxes else tuple(columns)
-        self.tree = tb.Treeview(self, columns=all_columns, show="tree headings", **kw)
-        # Only sets background, so it composes with a caller's own foreground
-        # tags (e.g. explorer.py's risk-level colors) without conflict.
-        self.tree.tag_configure("odd", background="#f3f5f7")
+        coldata: list[dict] = []
         if show_checkboxes:
-            self.tree.heading(CHECK_COLUMN, text="")
-            self.tree.column(CHECK_COLUMN, width=32, anchor="center", stretch=False)
+            coldata.append({"text": "", "width": 32, "stretch": False, "anchor": "center"})
         for name in columns:
-            self.tree.heading(name, text=(headings or {}).get(name, name))
+            coldata.append({"text": (headings or {}).get(name, name), "stretch": True})
+        coldata.append({"text": _IID_COLUMN, "width": 0, "stretch": False})
 
-        vsb = tb.Scrollbar(self, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=vsb.set)
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.table = tb.Tableview(
+            self, coldata=coldata, rowdata=[], bootstyle="primary",
+            stripecolor=("#f3f5f7", None), autofit=False, searchable=searchable,
+            yscrollbar=True, iid_field=_IID_COLUMN, **kw,
+        )
+        self.table.pack(fill="both", expand=True)
+        self.table.tablecolumns[-1].hide()
+
+        # Several callers reach into the underlying ttk.Treeview directly
+        # (selectmode, extra bindings) — keep that working unchanged.
+        self.tree = self.table.view
 
         if show_checkboxes:
             self.tree.bind("<Button-1>", self._on_click)
@@ -76,20 +84,32 @@ class CheckTreeview(tb.Frame):
         checkable: bool = True,
         open_: bool = False,
     ) -> str:
-        row_values = (UNCHECKED if checkable else "", *values) if self.show_checkboxes else values
-        all_tags = (*tags, "odd") if self._row_count % 2 else tags
-        self._row_count += 1
-        self.tree.insert(parent, "end", iid=iid, text=text, values=row_values, tags=all_tags,
-                         open=open_)
+        # `parent`/`text`/`open_` are vestiges of the ttk.Treeview-only API
+        # (hierarchy, tree-column label). Tableview is flat, and every real
+        # call site already passes "" for both — kept as no-ops so none of
+        # them need to change.
+        row_values = (
+            [UNCHECKED if checkable else "", *values, iid]
+            if self.show_checkboxes else [*values, iid]
+        )
+        # reload=False: inserting one-by-one with the default reload=True
+        # would re-layout the whole table after every single row. Callers
+        # call `render()` once after their insert loop instead.
+        row = self.table.insert_row(values=row_values, reload=False)
+        if tags:
+            row.configure(tags=tags)
         if checkable:
             self._checkable.add(iid)
         return iid
 
+    def render(self) -> None:
+        """Paint rows queued by `insert_row(..., reload=False)` in one pass."""
+        self.table.load_table_data()
+
     def clear(self) -> None:
-        self.tree.delete(*self.tree.get_children())
+        self.table.delete_rows()
         self._checked.clear()
         self._checkable.clear()
-        self._row_count = 0
 
     def configure_tag(self, tag: str, **opts) -> None:
         self.tree.tag_configure(tag, **opts)
@@ -123,10 +143,16 @@ class CheckTreeview(tb.Frame):
             self._checked.add(iid)
         else:
             self._checked.discard(iid)
-        symbol = CHECKED if value else UNCHECKED
-        values = list(self.tree.item(iid, "values"))
-        values[0] = symbol
-        self.tree.item(iid, values=values)
+        row = self.table.get_row(iid=iid)
+        if row is not None:
+            # Must go through TableRow, not `self.tree.item()` directly:
+            # TableRow caches its own `.values` and stamps them back onto
+            # the live Treeview on the next `refresh()` (e.g. after a
+            # search/filter/reload) — a raw item() write would get silently
+            # reverted the next time that happens.
+            values = list(row.values)
+            values[0] = CHECKED if value else UNCHECKED
+            row.values = values
         if self.on_change is not None:
             self.on_change(iid, value)
 
