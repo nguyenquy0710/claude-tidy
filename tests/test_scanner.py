@@ -4,7 +4,13 @@ import json
 
 from claude_tidy.core import scanner
 from claude_tidy.core.paths import ClaudePaths
-from claude_tidy.core.scanner import check_deletable, read_session_meta, scan_cache, scan_projects
+from claude_tidy.core.scanner import (
+    check_deletable,
+    count_messages,
+    read_session_meta,
+    scan_cache,
+    scan_projects,
+)
 from tests.fixtures import fake_claude as fc
 
 
@@ -19,6 +25,26 @@ def test_bundle_contains_every_session_artifact(fake):
     assert bundle.cwd == fc.ALPHA_CWD
     assert bundle.title == "Old refactor"
     assert bundle.size_bytes > 0
+    assert bundle.message_count == 2  # fixture writes ai-title + user per session
+
+
+def test_count_messages(tmp_path):
+    f = tmp_path / "t.jsonl"
+    f.write_text('{"a":1}\n{"b":2}\n{"c":3}\n', encoding="utf-8")
+    assert count_messages(f) == 3
+
+
+def test_count_messages_missing_file_is_zero_not_an_error(tmp_path):
+    assert count_messages(tmp_path / "nope.jsonl") == 0
+
+
+def test_count_messages_no_trailing_newline_still_counts_last_line(tmp_path):
+    f = tmp_path / "t.jsonl"
+    f.write_bytes(b'{"a":1}\n{"b":2}')  # no trailing \n after the last record
+    # A byte-scan counting b"\n" undercounts by one when the file doesn't end
+    # in a newline — document the known limitation rather than silently
+    # pretend it's exact.
+    assert count_messages(f) == 1
 
 
 def test_memory_and_non_session_entries_are_never_in_a_bundle(fake):
@@ -110,6 +136,9 @@ def test_scan_cache_uses_allowlist_only(fake):
     assert not any("Local Storage" in p.parts or "vm_bundles" in p.parts for p in all_paths)
     temp = next(g for g in groups if g.name.startswith("Temp"))
     assert temp.size_bytes == 100
+    assert temp.file_count == 2  # tmp1.txt + tmp2.txt, per fixture
+    cache = next(g for g in groups if g.name == "Desktop: Cache")
+    assert cache.file_count == 1
 
 
 def test_scan_handles_missing_directories(tmp_path):

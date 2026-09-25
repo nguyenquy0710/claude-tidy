@@ -9,7 +9,7 @@ from pathlib import Path
 
 from claude_tidy.core.models import CacheGroup, Project, SessionBundle
 from claude_tidy.core.paths import ClaudePaths
-from claude_tidy.core.usage import is_link, path_size
+from claude_tidy.core.usage import count_files, is_link, path_size
 
 log = logging.getLogger(__name__)
 
@@ -145,8 +145,10 @@ def _scan_project(project_dir: Path, paths: ClaudePaths) -> Project:
 def _build_bundle(session_id: str, slug: str, members: list[Path]) -> SessionBundle:
     jsonl = next((m for m in members if m.name == f"{session_id}.jsonl"), None)
     cwd = title = None
+    message_count = 0
     if jsonl is not None:
         cwd, title = read_session_meta(jsonl)
+        message_count = count_messages(jsonl)
     mtimes = [_mtime(m) for m in ([jsonl] if jsonl else members)]
     return SessionBundle(
         session_id=session_id,
@@ -155,9 +157,28 @@ def _build_bundle(session_id: str, slug: str, members: list[Path]) -> SessionBun
         jsonl=jsonl,
         cwd=cwd,
         title=title,
+        message_count=message_count,
         last_write=max(mtimes, default=0.0),
         size_bytes=sum(path_size(m) for m in members),
     )
+
+
+def count_messages(jsonl: Path) -> int:
+    """Count records (one JSON object per line) via a raw byte scan.
+
+    Unlike `read_session_meta`, an accurate count needs the whole file — but
+    this only counts b"\\n" bytes in chunks, never parses JSON or loads the
+    file into memory, so it stays cheap even for a multi-hundred-MB transcript.
+    """
+    try:
+        count = 0
+        with jsonl.open("rb") as f:
+            while chunk := f.read(1024 * 1024):
+                count += chunk.count(b"\n")
+        return count
+    except OSError as exc:
+        log.warning("Cannot count messages in %s: %s", jsonl, exc)
+        return 0
 
 
 def _mtime(path: Path) -> float:
@@ -211,10 +232,11 @@ def scan_cache(paths: ClaudePaths) -> list[CacheGroup]:
             d = desktop / name
             if d.is_dir() and not is_link(d):
                 groups.append(CacheGroup(name=f"Desktop: {name}", root=desktop, paths=[d],
-                                         size_bytes=path_size(d)))
+                                         size_bytes=path_size(d), file_count=count_files([d])))
     if paths.temp_dir.is_dir() and not is_link(paths.temp_dir):
         children = sorted(paths.temp_dir.iterdir())
         if children:
             groups.append(CacheGroup(name="Temp (%TEMP%\\claude)", root=paths.temp_dir,
-                                     paths=children, size_bytes=sum(map(path_size, children))))
+                                     paths=children, size_bytes=sum(map(path_size, children)),
+                                     file_count=count_files(children)))
     return groups

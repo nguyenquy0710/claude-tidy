@@ -14,10 +14,10 @@ at the point of deletion, not just when a plan is built.
 |---|---|
 | `paths.py` | `ClaudePaths` — resolves `~/.claude`, Claude Desktop's data dir(s) (including the MSIX `Packages\Claude_*\LocalCache\...` location), `%TEMP%\claude`, and this app's own `%LOCALAPPDATA%\ClaudeTidy`. Every root is overridable via `CLAUDE_TIDY_*` env vars — that's what makes the test suite safe. |
 | `models.py` | All shared dataclasses/enums: `Project`, `SessionBundle`, `IndexEntry`, `CacheGroup`, `DeleteTarget`, `DeletePlan`, `Preview`, `Progress`, `DeleteResult`. Add new cross-module state here, not as ad-hoc dicts. |
-| `scanner.py` | `check_deletable()` (the allowlist+denylist gate — see below), `scan_projects()` (groups session artifacts into `SessionBundle` by `sessionId`), `scan_cache()`. |
+| `scanner.py` | `check_deletable()` (the allowlist+denylist gate — see below), `scan_projects()` (groups session artifacts into `SessionBundle` by `sessionId`), `scan_cache()`, `count_messages()` (line count per session transcript — UI's "Tin nhắn" column). |
 | `grouping.py` | Nests worktree projects under their parent (`group_projects`), and builds `DeletePlan`s (`build_session_plan`, `build_index_plan`, `build_cache_plan`). |
-| `usage.py` | `is_link()` (symlink/junction detection — used everywhere to avoid following links), disk usage helpers. |
-| `activity.py` | `ActivityDetector` — the active-session/PID-reuse logic. |
+| `usage.py` | `is_link()` (symlink/junction detection — used everywhere to avoid following links), disk usage helpers, `count_files()` (per-cache-group file count for the UI). |
+| `activity.py` | `ActivityDetector` — the active-session/PID-reuse logic; `orphan_state()` exposes *why* an index entry is orphaned (GONE vs REUSED) for the Index tab's "Lý do" column; `claude_desktop_pid()` for the Cache tab's lock warning. |
 | `risk.py` | Pure function mapping `(Activity, last_write, now)` → `RiskLevel` for UI badges only; never used to gate deletion (activity is, in `deleter.py`). |
 | `backup.py` | `create_backup()` — zip with per-file sha256 manifest, verified before the caller may delete; `prune_backups()` for retention. |
 | `deleter.py` | `preview()` / `execute()` — the one deletion pipeline. |

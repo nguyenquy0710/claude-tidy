@@ -157,27 +157,32 @@ class ActivityDetector:
     def index_entries(self) -> list[IndexEntry]:
         return list(self._entries)
 
-    def is_orphan(self, entry: IndexEntry) -> bool:
+    def orphan_state(self, entry: IndexEntry) -> ProcessState | None:
+        """The specific reason `is_orphan()` said yes — GONE vs REUSED — for display."""
         if entry.pid is None:
-            return False
-        state = self._states.get(entry.pid) or probe_process(
-            entry.pid, entry.proc_start, self.probe
-        )
-        return state in (ProcessState.GONE, ProcessState.REUSED)
+            return None
+        return self._states.get(entry.pid) or probe_process(entry.pid, entry.proc_start, self.probe)
+
+    def is_orphan(self, entry: IndexEntry) -> bool:
+        return self.orphan_state(entry) in (ProcessState.GONE, ProcessState.REUSED)
 
     def orphan_entries(self) -> list[IndexEntry]:
         return [e for e in self._entries if self.is_orphan(e)]
 
 
-def is_claude_desktop_running() -> bool:
+def claude_desktop_pid() -> int | None:
     # Claude Code's CLI is also named claude.exe, so match on install location:
     # MSIX (WindowsApps\Claude_*) or Squirrel (AnthropicClaude) — excluding the
     # claude-code binaries Desktop bundles.
-    for proc in psutil.process_iter(["name", "exe"]):
+    for proc in psutil.process_iter(["name", "exe", "pid"]):
         name = (proc.info.get("name") or "").lower()
         exe = (proc.info.get("exe") or "").lower()
         if name != "claude.exe" or "claude-code" in exe:
             continue
         if "\\windowsapps\\claude_" in exe or "\\anthropicclaude\\" in exe:
-            return True
-    return False
+            return proc.info["pid"]
+    return None
+
+
+def is_claude_desktop_running() -> bool:
+    return claude_desktop_pid() is not None

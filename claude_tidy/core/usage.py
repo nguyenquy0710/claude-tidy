@@ -45,6 +45,23 @@ def total_size(paths: Iterable[Path]) -> int:
     return sum(path_size(p) for p in paths)
 
 
+def count_files(paths: Iterable[Path]) -> int:
+    total = 0
+    for path in paths:
+        if is_link(path):
+            continue
+        try:
+            if path.is_file():
+                total += 1
+                continue
+        except OSError:
+            continue
+        for dirpath, dirnames, filenames in os.walk(path, followlinks=False):
+            dirnames[:] = [d for d in dirnames if not is_link(Path(dirpath, d))]
+            total += len(filenames)
+    return total
+
+
 def human_size(n: int) -> str:
     size = float(n)
     for unit in ("B", "KB", "MB", "GB"):

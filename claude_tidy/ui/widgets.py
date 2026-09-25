@@ -27,6 +27,7 @@ import ttkbootstrap as tb
 
 UNCHECKED = "☐"  # ☐
 CHECKED = "☑"  # ☑
+LOCKED = "🔒"  # shown instead of a checkbox for a non-checkable row
 _IID_COLUMN = "__iid__"  # hidden column Tableview's iid_field is bound to
 
 
@@ -56,9 +57,12 @@ class CheckTreeview(tb.Frame):
             coldata.append({"text": (headings or {}).get(name, name), "stretch": True})
         coldata.append({"text": _IID_COLUMN, "width": 0, "stretch": False})
 
+        # No bootstyle/stripecolor override: the reference UI template uses a
+        # plain, neutral heading (light gray background, dark text) and no
+        # zebra striping — not the accent-colored heading this widget used
+        # before that template existed.
         self.table = tb.Tableview(
-            self, coldata=coldata, rowdata=[], bootstyle="primary",
-            stripecolor=("#f3f5f7", None), autofit=False, searchable=searchable,
+            self, coldata=coldata, rowdata=[], autofit=False, searchable=searchable,
             yscrollbar=True, iid_field=_IID_COLUMN, **kw,
         )
         self.table.pack(fill="both", expand=True)
@@ -89,7 +93,7 @@ class CheckTreeview(tb.Frame):
         # call site already passes "" for both — kept as no-ops so none of
         # them need to change.
         row_values = (
-            [UNCHECKED if checkable else "", *values, iid]
+            [UNCHECKED if checkable else LOCKED, *values, iid]
             if self.show_checkboxes else [*values, iid]
         )
         # reload=False: inserting one-by-one with the default reload=True

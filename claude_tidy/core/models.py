@@ -41,6 +41,7 @@ class SessionBundle:
     title: str | None = None
     last_write: float = 0.0
     size_bytes: int = 0
+    message_count: int = 0
 
 
 @dataclass
@@ -87,6 +88,7 @@ class CacheGroup:
     root: Path
     paths: list[Path]
     size_bytes: int = 0
+    file_count: int = 0
 
 
 @dataclass
