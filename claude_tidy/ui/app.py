@@ -11,6 +11,8 @@ from claude_tidy.ui.dispatch import Dispatcher, pump_forever
 from claude_tidy.ui.explorer import ExplorerView
 from claude_tidy.ui.other_views import CacheView, IndexView, SettingsView
 from claude_tidy.ui.state import AppState
+from claude_tidy.ui.theme import apply_global_style
+from claude_tidy.ui.theme import font_family as ff
 
 APP_VERSION = "v0.1 · MVP"
 
@@ -29,6 +31,9 @@ def build_app() -> tb.Window:
     _enable_dpi_awareness()
     root = tb.Window(themename="cosmo", title="Claude Tidy", size=(1200, 800))
     root.minsize(900, 600)
+    # Must run before any other widget is created — Style.colors.set() only
+    # retints bootstyle-generated styles made *after* the call.
+    apply_global_style(root)
     # Applies to every Treeview in the app (project tree, session/cache/index
     # lists, the delete-flow preview) — the ttkbootstrap default is cramped.
     tb.Style().configure("Treeview", rowheight=28)
@@ -44,7 +49,7 @@ def build_app() -> tb.Window:
     # bar instead — see claude_tidy/ui/CLAUDE.md.
     appbar = tb.Frame(root)
     appbar.pack(fill="x")
-    tb.Label(appbar, text="📌 claude-tidy", font=("", 11, "bold")
+    tb.Label(appbar, text="📌 claude-tidy", font=(ff(), 11, "bold")
              ).pack(side="left", padx=(10, 6), pady=6)
     tb.Label(appbar, text=APP_VERSION, bootstyle="secondary").pack(side="left")
     tb.Separator(root).pack(fill="x")
@@ -59,9 +64,9 @@ def build_app() -> tb.Window:
     tb.Separator(root).pack(fill="x")
     statusbar = tb.Frame(root)
     statusbar.pack(fill="x")
-    tb.Label(statusbar, textvariable=status_left, bootstyle="secondary", font=("", 9)
+    tb.Label(statusbar, textvariable=status_left, bootstyle="secondary", font=(ff(), 9)
              ).pack(side="left", padx=10, pady=4)
-    tb.Label(statusbar, textvariable=status_right, bootstyle="secondary", font=("", 9)
+    tb.Label(statusbar, textvariable=status_right, bootstyle="secondary", font=(ff(), 9)
              ).pack(side="right", padx=10, pady=4)
 
     views = [

@@ -16,6 +16,7 @@ from claude_tidy.core.usage import human_size
 from claude_tidy.ui.delete_flow import run_delete_flow
 from claude_tidy.ui.dispatch import Dispatcher, run_in_background
 from claude_tidy.ui.state import AppState
+from claude_tidy.ui.theme import font_family as ff
 from claude_tidy.ui.widgets import CheckTreeview
 
 # Short, human descriptions for the fixed set of cache dir names claude_tidy
@@ -46,20 +47,20 @@ class CacheView(tb.Frame):
         top.pack(fill="x")
         titles = tb.Frame(top)
         titles.pack(side="left", anchor="w")
-        tb.Label(titles, text="Cache & file tạm", font=("", 15, "bold")).pack(anchor="w")
+        tb.Label(titles, text="Cache & file tạm", font=(ff(), 15, "bold")).pack(anchor="w")
         tb.Label(titles, text="Claude Desktop (%APPDATA%\\Claude) và %TEMP%\\claude",
                 bootstyle="secondary").pack(anchor="w")
         stat = tb.Frame(top)
         stat.pack(side="right", anchor="e")
         self.total_var = tk.StringVar()
-        tb.Label(stat, textvariable=self.total_var, font=("", 13, "bold")).pack(anchor="e")
-        tb.Label(stat, text="tổng có thể dọn", bootstyle="secondary", font=("", 9)
+        tb.Label(stat, textvariable=self.total_var, font=(ff(), 13, "bold")).pack(anchor="e")
+        tb.Label(stat, text="tổng có thể dọn", bootstyle="secondary", font=(ff(), 9)
                 ).pack(anchor="e")
         self.busy_label = tb.Label(self, text="Đang quét…", bootstyle="secondary")
         self.busy_label.pack(anchor="w", pady=(4, 0))
 
         warn_body = tb.Frame(self)
-        self.warning_title = tb.Label(warn_body, font=("", 10, "bold"), bootstyle="warning")
+        self.warning_title = tb.Label(warn_body, font=(ff(), 10, "bold"), bootstyle="warning")
         self.warning_title.pack(anchor="w")
         tb.Label(warn_body, text="Một số file cache đang bị khoá. Đóng Claude Desktop trước "
                                  "khi xoá để tránh lỗi và dữ liệu dở dang.", bootstyle="secondary"
@@ -152,7 +153,7 @@ class IndexView(tb.Frame):
 
         header = tb.Frame(self)
         header.pack(fill="x")
-        tb.Label(header, text="Index mồ côi", font=("", 15, "bold")).pack(anchor="w")
+        tb.Label(header, text="Index mồ côi", font=(ff(), 15, "bold")).pack(anchor="w")
         tb.Label(header, text="File ~/.claude/sessions/<pid>.json của process đã tắt, hoặc PID "
                               "đã bị hệ điều hành cấp lại cho process khác (create_time không "
                               "khớp procStart). Mỗi file cần được xác nhận riêng.",
@@ -240,7 +241,7 @@ class SettingsView(tb.Frame):
         self.state = state
         s = state.settings
 
-        tb.Label(self, text="Cài đặt", font=("", 15, "bold")).pack(anchor="w", pady=(0, 12))
+        tb.Label(self, text="Cài đặt", font=(ff(), 15, "bold")).pack(anchor="w", pady=(0, 12))
 
         columns = tb.Frame(self)
         columns.pack(fill="x")
@@ -251,7 +252,7 @@ class SettingsView(tb.Frame):
         detect_col = tb.Frame(columns)
         detect_col.grid(row=0, column=1, sticky="new")
 
-        tb.Label(backup_col, text="Backup", font=("", 11, "bold")).pack(anchor="w")
+        tb.Label(backup_col, text="Backup", font=(ff(), 11, "bold")).pack(anchor="w")
         tb.Label(backup_col, text="Mọi thao tác xoá đều nén .zip + manifest sha256 trước.",
                 bootstyle="secondary", wraplength=380).pack(anchor="w", pady=(0, 8))
         self.backup_dir_var = tk.StringVar(value=str(s.backup_dir))
@@ -265,7 +266,7 @@ class SettingsView(tb.Frame):
         self.retention_var = tk.StringVar(value=str(s.retention_days))
         self._spin_field(backup_col, "Giữ backup trong", self.retention_var, "ngày")
 
-        tb.Label(detect_col, text="Phát hiện session", font=("", 11, "bold")).pack(anchor="w")
+        tb.Label(detect_col, text="Phát hiện session", font=(ff(), 11, "bold")).pack(anchor="w")
         tb.Label(detect_col, text="Quyết định badge rủi ro và mục nào cần xác nhận.",
                 bootstyle="secondary", wraplength=380).pack(anchor="w", pady=(0, 8))
         self.maybe_active_var = tk.StringVar(value=str(s.maybe_active_minutes))
@@ -282,7 +283,7 @@ class SettingsView(tb.Frame):
         theme_row.pack(fill="x", pady=(16, 0))
         theme_labels = tb.Frame(theme_row)
         theme_labels.pack(side="left")
-        tb.Label(theme_labels, text="Giao diện", font=("", 10, "bold")).pack(anchor="w")
+        tb.Label(theme_labels, text="Giao diện", font=(ff(), 10, "bold")).pack(anchor="w")
         tb.Label(theme_labels, text="Theme ttkbootstrap", bootstyle="secondary").pack(anchor="w")
         self.theme_var = tk.StringVar(value="cosmo")
         tb.Combobox(theme_row, textvariable=self.theme_var, values=THEME_CHOICES,
@@ -315,7 +316,7 @@ class SettingsView(tb.Frame):
         return f"Hiện có {len(zips)} bản backup · {human_size(size)}"
 
     def _field_with_browse(self, parent, label: str, var: tk.StringVar) -> None:
-        tb.Label(parent, text=label, bootstyle="secondary", font=("", 9)).pack(anchor="w")
+        tb.Label(parent, text=label, bootstyle="secondary", font=(ff(), 9)).pack(anchor="w")
         row = tb.Frame(parent)
         row.pack(fill="x", pady=(2, 0))
         tb.Entry(row, textvariable=var).pack(side="left", fill="x", expand=True, padx=(0, 4))
@@ -328,7 +329,7 @@ class SettingsView(tb.Frame):
         texts = tb.Frame(row)
         texts.pack(side="left", fill="x", expand=True)
         tb.Label(texts, text=label).pack(anchor="w")
-        tb.Label(texts, text=hint, bootstyle="secondary", font=("", 9)).pack(anchor="w")
+        tb.Label(texts, text=hint, bootstyle="secondary", font=(ff(), 9)).pack(anchor="w")
         tb.Checkbutton(row, variable=var, bootstyle="round-toggle").pack(side="right")
 
     def _spin_field(self, parent, label: str, var: tk.StringVar, unit: str,
@@ -339,7 +340,7 @@ class SettingsView(tb.Frame):
         texts.pack(side="left", fill="x", expand=True)
         tb.Label(texts, text=label).pack(anchor="w")
         if hint:
-            tb.Label(texts, text=hint, bootstyle="secondary", font=("", 9), wraplength=260
+            tb.Label(texts, text=hint, bootstyle="secondary", font=(ff(), 9), wraplength=260
                     ).pack(anchor="w")
         spin = tb.Frame(row)
         spin.pack(side="right")

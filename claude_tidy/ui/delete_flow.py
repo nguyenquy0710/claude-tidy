@@ -18,6 +18,7 @@ from claude_tidy.core.models import DeletePlan, DeleteResult, Progress
 from claude_tidy.core.usage import human_size
 from claude_tidy.ui.dispatch import Dispatcher, run_in_background
 from claude_tidy.ui.state import AppState
+from claude_tidy.ui.theme import font_family as ff
 from claude_tidy.ui.widgets import CheckTreeview
 
 RISK_COLORS = {"danger": "#dc3545", "warning": "#fd7e14"}
@@ -53,7 +54,7 @@ def run_delete_flow(
         tb.Label(body, text="Sẽ xoá", bootstyle="success").pack(anchor="w")
         for t in pv.will_delete:
             tb.Label(body, text=f"• {t.label}  ({human_size(t.size_bytes)})",
-                    font=("", 9)).pack(anchor="w")
+                    font=(ff(), 9)).pack(anchor="w")
 
     confirm_tree: CheckTreeview | None = None
     if pv.needs_confirmation:
@@ -70,7 +71,7 @@ def run_delete_flow(
     if pv.skipped:
         tb.Label(body, text="Sẽ bỏ qua", bootstyle="danger").pack(anchor="w", pady=(8, 2))
         for t, reason in pv.skipped:
-            tb.Label(body, text=f"• {t.label} — {reason}", font=("", 9)).pack(anchor="w")
+            tb.Label(body, text=f"• {t.label} — {reason}", font=(ff(), 9)).pack(anchor="w")
 
     name_var = tk.StringVar()
     name_entry: tb.Entry | None = None
@@ -202,17 +203,17 @@ def _show_report(root: tk.Misc, result: DeleteResult) -> None:
     if result.skipped:
         tb.Label(body, text="Đã bỏ qua", bootstyle="danger").pack(anchor="w", pady=(8, 2))
         for t, r in result.skipped:
-            tb.Label(body, text=f"• {t.label} — {r}", font=("", 9)).pack(anchor="w")
+            tb.Label(body, text=f"• {t.label} — {r}", font=(ff(), 9)).pack(anchor="w")
     if result.needs_confirmation:
         tb.Label(body, text="Không xoá (chưa xác nhận)", bootstyle="warning"
                 ).pack(anchor="w", pady=(8, 2))
         for t in result.needs_confirmation:
-            tb.Label(body, text=f"• {t.label}", font=("", 9)).pack(anchor="w")
+            tb.Label(body, text=f"• {t.label}", font=(ff(), 9)).pack(anchor="w")
     if result.failed_files:
         tb.Label(body, text=f"{len(result.failed_files)} file không xoá được",
                 bootstyle="danger").pack(anchor="w", pady=(8, 2))
         for p, e in result.failed_files[:50]:
-            tb.Label(body, text=f"• {p}: {e}", font=("", 8)).pack(anchor="w")
+            tb.Label(body, text=f"• {p}: {e}", font=(ff(), 8)).pack(anchor="w")
 
     tb.Button(dialog, text="Đóng", command=dialog.destroy, bootstyle="primary"
              ).pack(pady=10)

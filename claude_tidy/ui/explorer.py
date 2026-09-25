@@ -15,16 +15,9 @@ from claude_tidy.core.usage import human_size
 from claude_tidy.ui.delete_flow import run_delete_flow
 from claude_tidy.ui.dispatch import Dispatcher, run_in_background
 from claude_tidy.ui.state import AppState
+from claude_tidy.ui.theme import DANGER_FG, TEXT_MUTED, WARNING_FG
+from claude_tidy.ui.theme import font_family as ff
 from claude_tidy.ui.widgets import CheckTreeview
-
-# Exact colors sampled from the reference UI template (docs/claude-tidy — UI.html).
-# ttk.Treeview can only tag a whole row's foreground, not a single cell, so
-# the template's colored *pill* badges become colored *text* here instead —
-# same palette, flatter shape (see claude_tidy/ui/CLAUDE.md).
-DANGER_FG = "#b3261e"
-WARNING_FG = "#7a5200"
-MUTED_FG = "#5b6573"
-ACCENT = "#1f6fc5"
 
 RISK_FILTERS: tuple[tuple[str, RiskLevel | None], ...] = (
     ("Tất cả", None),
@@ -78,19 +71,21 @@ class ExplorerView(tb.Frame):
     # ------------------------------------------------------------------ left
 
     def _build_left(self) -> None:
-        left = tb.Frame(self, width=300)
+        # A distinct off-white panel from the (white) main content area,
+        # matching the mockup — see Sidebar.TFrame/TLabel in theme.py.
+        left = tb.Frame(self, width=300, style="Sidebar.TFrame")
         left.grid(row=0, column=0, sticky="nsw", padx=(0, 10))
         left.grid_propagate(False)
         left.rowconfigure(2, weight=1)
         left.columnconfigure(0, weight=1)
 
-        header = tb.Frame(left)
+        header = tb.Frame(left, style="Sidebar.TFrame")
         header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        tb.Label(header, text="PROJECT", font=("", 9, "bold"), bootstyle="secondary"
+        tb.Label(header, text="PROJECT", font=(ff(), 9, "bold"), style="SidebarMuted.TLabel"
                  ).pack(side="left")
         self.project_stats_var = tk.StringVar()
-        tb.Label(header, textvariable=self.project_stats_var, bootstyle="secondary", font=("", 9)
-                 ).pack(side="right")
+        tb.Label(header, textvariable=self.project_stats_var, font=(ff(), 9),
+                style="SidebarMuted.TLabel").pack(side="right")
 
         self.project_filter_var = tk.StringVar()
         self.project_filter_var.trace_add("write", lambda *_a: self._render_projects())
@@ -101,7 +96,7 @@ class ExplorerView(tb.Frame):
         # in the status bar / tooltip carries the hint instead.
         tb.ToolTip(filter_entry, text="Lọc project theo tên")
 
-        tree_frame = tb.Frame(left)
+        tree_frame = tb.Frame(left, style="Sidebar.TFrame")
         tree_frame.grid(row=2, column=0, sticky="nsew")
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
@@ -133,7 +128,7 @@ class ExplorerView(tb.Frame):
         titles = tb.Frame(top)
         titles.grid(row=0, column=0, sticky="w")
         self.header_var = tk.StringVar(value="Chọn một project")
-        tb.Label(titles, textvariable=self.header_var, font=("", 15, "bold")).pack(anchor="w")
+        tb.Label(titles, textvariable=self.header_var, font=(ff(), 15, "bold")).pack(anchor="w")
         self.subheader_var = tk.StringVar()
         tb.Label(titles, textvariable=self.subheader_var, bootstyle="secondary"
                  ).pack(anchor="w")
@@ -151,15 +146,16 @@ class ExplorerView(tb.Frame):
         chips.grid(row=1, column=0, sticky="w", pady=(10, 6))
         self.chip_buttons: dict[RiskLevel | None, tb.Button] = {}
         for label, level in RISK_FILTERS:
-            btn = tb.Button(chips, text=label,
-                             bootstyle="primary" if level is None else "secondary-outline",
+            btn = tb.Button(chips, text=label, style="Neutral.TButton",
                              command=lambda lv=level: self._set_risk_filter(lv))
+            if level is None:
+                btn.configure(bootstyle="primary")
             btn.pack(side="left", padx=(0, 6))
             self.chip_buttons[level] = btn
 
         actions = tb.Frame(right)
         actions.grid(row=2, column=0, sticky="w", pady=(0, 8))
-        tb.Button(actions, text="⟳ Quét lại", command=self.rescan, bootstyle="secondary-outline"
+        tb.Button(actions, text="⟳ Quét lại", command=self.rescan, style="Neutral.TButton"
                   ).pack(side="left", padx=(0, 8))
         self.delete_checked_btn = tb.Button(actions, text="Xoá đã chọn", state="disabled",
                                              command=self._delete_checked, bootstyle="primary")
@@ -185,14 +181,14 @@ class ExplorerView(tb.Frame):
         for cid, width in ((2, 110), (3, 80), (4, 90), (5, 140)):
             self.session_tree.table.tablecolumns[cid].configure(width=width, stretch=False)
         for tag, color in (("danger", DANGER_FG), ("warning", WARNING_FG),
-                           ("safe", MUTED_FG)):
+                           ("safe", TEXT_MUTED)):
             self.session_tree.configure_tag(tag, foreground=color)
 
     def _stat_block(self, parent, var: tk.StringVar, label: str) -> None:
         block = tb.Frame(parent)
         block.pack(side="left", padx=(16, 0))
-        tb.Label(block, textvariable=var, font=("", 13, "bold")).pack(anchor="e")
-        tb.Label(block, text=label, bootstyle="secondary", font=("", 9)).pack(anchor="e")
+        tb.Label(block, textvariable=var, font=(ff(), 13, "bold")).pack(anchor="e")
+        tb.Label(block, text=label, bootstyle="secondary", font=(ff(), 9)).pack(anchor="e")
 
     # --------------------------------------------------------------- scanning
 
@@ -300,7 +296,10 @@ class ExplorerView(tb.Frame):
     def _set_risk_filter(self, level: RiskLevel | None) -> None:
         self._risk_filter = level
         for lv, btn in self.chip_buttons.items():
-            btn.configure(bootstyle="primary" if lv == level else "secondary-outline")
+            if lv == level:
+                btn.configure(bootstyle="primary")
+            else:
+                btn.configure(style="Neutral.TButton")
         self._render_sessions()
 
     def _render_sessions(self) -> None:
