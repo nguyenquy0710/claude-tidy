@@ -2,7 +2,7 @@
 type: feature
 complexity: high
 status: planning
-related_issues: []
+related_issues: [QUYIT-741]
 related_prs: []
 estimated_hours: ~372 (≈ 46.5 person-days, gồm buffer)
 ---
@@ -170,6 +170,20 @@ Task ID mới đánh tiếp từ T20 để không làm lệch ID đã có.
 - [ ] **T18 — Scheduled Auto-Clean** (**2d**) · Nice-to-have
   - Chỉ xoá bundle `safe`, tái sử dụng pipeline T10
 - [ ] **T19 — System Tray** (**1.5d**) · Nice-to-have
+
+### Jira (tạo 2026-09-25)
+
+Epic [QUYIT-741](https://nhquydev.atlassian.net/browse/QUYIT-741). Tất cả task nằm trong QUYIT Sprint 34. Fix version: M1 → Tháng 9/2026 (triển khai từ tháng 9, chốt 2026-09-25), M2 → Tháng 10/2026, M3–M5 và T20–T21 → Tháng 11/2026, Phase 2 → Tháng 12/2026.
+
+| Task | Jira | Task | Jira | Task | Jira |
+|---|---|---|---|---|---|
+| T01 | QUYIT-742 | T08 | QUYIT-749 | T15 | QUYIT-756 |
+| T02 | QUYIT-743 | T09 | QUYIT-750 | T16 | QUYIT-757 |
+| T03 | QUYIT-744 | T10 | QUYIT-751 | T17 | QUYIT-758 |
+| T04 | QUYIT-745 | T11 | QUYIT-752 | T18 | QUYIT-759 |
+| T05 | QUYIT-746 | T12 | QUYIT-753 | T19 | QUYIT-760 |
+| T06 | QUYIT-747 | T13 | QUYIT-754 | T20 | QUYIT-761 |
+| T07 | QUYIT-748 | T14 | QUYIT-755 | T21 | QUYIT-762 |
 
 ### Tổng hợp effort
 
