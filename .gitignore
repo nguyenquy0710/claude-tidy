@@ -38,6 +38,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# ad-hoc `pip freeze` dumps (README) — pyproject.toml is the real dependency source
+pip-freeze.txt
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
