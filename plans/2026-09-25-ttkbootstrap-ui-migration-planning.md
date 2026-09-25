@@ -2,7 +2,7 @@
 type: refactor
 complexity: medium
 status: in-progress
-related_issues: [QUYIT-741, QUYIT-742, QUYIT-757]
+related_issues: [QUYIT-741, QUYIT-742, QUYIT-757, QUYIT-763, QUYIT-764, QUYIT-765, QUYIT-766, QUYIT-767, QUYIT-768, QUYIT-769, QUYIT-770, QUYIT-771, QUYIT-772, QUYIT-773]
 related_prs: []
 estimated_hours: ~150 (≈ 19 person-days, gồm buffer)
 ---
@@ -136,6 +136,33 @@ Task ID đánh tiếp từ **T22** để không trùng T01–T21 của roadmap g
 
 - T17 Restore, T18 Scheduled Auto-Clean: không đổi.
 - T19 System Tray: Tk không có tray sẵn → cần thêm `pystray` chạy trên thread riêng, có thể **+0.5d** so với estimate gốc 1.5d.
+
+### Jira (tạo 2026-09-25)
+
+Epic: [QUYIT-741](https://nhquydev.atlassian.net/browse/QUYIT-741) (status: In Progress).
+Sprint: QUYIT Sprint 34 (id 145, active, xem trong board "QuyIT Platform Board") —
+gán chung cho cả 11 issue thay vì rải theo milestone như đề xuất mặc định của
+`/jira-nqdev-insight-create-issue`, vì T22–T32 thực tế làm xong trong cùng một
+phiên (2026-09-25), không trải qua nhiều sprint như timeline giả định ban đầu.
+Fix version: **Tháng 9/2026** (id 10050, chưa released) — áp dụng cho cả 11
+issue với cùng lý do (khớp ngày hoàn thành thực tế, không rải theo milestone).
+Cũng đã cập nhật trạng thái T01–T21 hiện có: 16 → Done, T01 (QUYIT-742) và T16
+(QUYIT-757) → Rejected (bị thay bởi T29/T30), T17–T19 giữ nguyên To Do
+(Phase 2, chưa làm), epic → In Progress.
+
+| Task | Jira | Trạng thái | Fix version |
+|---|---|---|---|
+| T22 | [QUYIT-763](https://nhquydev.atlassian.net/browse/QUYIT-763) | Done | Tháng 9/2026 |
+| T23 | [QUYIT-764](https://nhquydev.atlassian.net/browse/QUYIT-764) | Done | Tháng 9/2026 |
+| T24 | [QUYIT-765](https://nhquydev.atlassian.net/browse/QUYIT-765) | Done | Tháng 9/2026 |
+| T25 | [QUYIT-766](https://nhquydev.atlassian.net/browse/QUYIT-766) | Done | Tháng 9/2026 |
+| T26 | [QUYIT-767](https://nhquydev.atlassian.net/browse/QUYIT-767) | Done | Tháng 9/2026 |
+| T27 | [QUYIT-768](https://nhquydev.atlassian.net/browse/QUYIT-768) | Done | Tháng 9/2026 |
+| T28 | [QUYIT-769](https://nhquydev.atlassian.net/browse/QUYIT-769) | Done | Tháng 9/2026 |
+| T29 | [QUYIT-770](https://nhquydev.atlassian.net/browse/QUYIT-770) | Done | Tháng 9/2026 |
+| T30 | [QUYIT-771](https://nhquydev.atlassian.net/browse/QUYIT-771) | Done | Tháng 9/2026 |
+| T31 | [QUYIT-772](https://nhquydev.atlassian.net/browse/QUYIT-772) | In Progress (chưa có VM sạch) | Tháng 9/2026 |
+| T32 | [QUYIT-773](https://nhquydev.atlassian.net/browse/QUYIT-773) | Done | Tháng 9/2026 |
 
 ### Tổng hợp effort
 
