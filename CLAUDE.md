@@ -8,8 +8,11 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 data and Claude Desktop cache, with backup, active-session detection, and
 per-project session management.
 
-This repo is **greenfield**: as of now it contains only planning docs
-(`docs/`, `plans/`) and no source code yet. Treat `docs/claude-session-cleaner-idea.md`
+The MVP core (`claude_tidy/core/`), Flet UI (`claude_tidy/ui/`) and pytest
+suite (`tests/`) exist; packaging (`flet build windows`, T16) is not done yet.
+Setup: `python -m venv .venv && .venv/Scripts/pip install -e .[dev]`, then
+`.venv/Scripts/python -m pytest` / `ruff check .` / `python -m claude_tidy`.
+Treat `docs/claude-session-cleaner-idea.md`
 (the product spec) and `plans/2026-09-25-session-cleaner-mvp-roadmap.md` (the task
 breakdown) as the source of truth for scope, architecture, and open decisions —
 read both before implementing anything. Do not re-derive the architecture from
@@ -29,33 +32,25 @@ scratch; it is already designed there.
 
 Out of scope: macOS/Linux builds, code-signing/installer, auto-update.
 
-## Planned architecture
+## Architecture
 
 Two-layer design, core logic independent of the UI so the dangerous parts
 (active-session detection, deletion) are unit-testable without launching Flet:
 
 ```
 claude_tidy/
-  core/
-    paths.py       # resolve ~/.claude, %APPDATA%\Claude, %TEMP%\claude (injectable for tests)
-    models.py       # Project, SessionBundle, RiskLevel, DeletePlan, OperationRecord
-    scanner.py      # scan + group into SessionBundle by sessionId
-    grouping.py      # list by project, build DeletePlan for single/multi/all
-    usage.py         # disk usage calculation
-    activity.py      # active-session detection
-    risk.py          # safe/warning/danger badge logic
-    backup.py         # zip + manifest
-    deleter.py         # execute(plan, on_progress) — the one deletion pipeline
-    oplog.py            # JSON-lines operation log, feeds Phase 2 Restore
-    settings.py          # read/write config
-  ui/                 # Flet views: explorer, settings, cache view, dialogs
-tests/fixtures/       # fake ~/.claude tree for tests
+  core/       # filesystem + safety logic — no Flet import anywhere in here
+  ui/         # Flet views; every delete goes through ui/delete_flow.py
+tests/
+  fixtures/   # fake ~/.claude tree, regenerated per test
 ```
 
-Once `T01` (see the roadmap) scaffolds this package, re-run
-`/nqdev-init-agents --sub-claude` so `claude_tidy/core/CLAUDE.md`,
-`claude_tidy/ui/CLAUDE.md`, and `tests/CLAUDE.md` get generated against the
-real files instead of this placeholder description.
+See [claude_tidy/CLAUDE.md](claude_tidy/CLAUDE.md) for the package-level
+conventions, [claude_tidy/core/CLAUDE.md](claude_tidy/core/CLAUDE.md) for the
+deletion-pipeline internals, [claude_tidy/ui/CLAUDE.md](claude_tidy/ui/CLAUDE.md)
+for the Flet layer, and [tests/CLAUDE.md](tests/CLAUDE.md) for the test
+harness — each is scoped to that directory and takes precedence over this
+file for anything specific to it.
 
 ## Safety-critical rules (non-negotiable)
 
@@ -113,6 +108,13 @@ destroys a Claude Code session the user may still be using.
 
 - `docs/claude-session-cleaner-idea.md` — product spec (Vietnamese). See [docs/CLAUDE.md](docs/CLAUDE.md).
 - `plans/*.md` — execution plans / task breakdowns. See [plans/CLAUDE.md](plans/CLAUDE.md).
+- `claude_tidy/core/` — scan, activity, risk, backup, the single `deleter.execute`
+  pipeline. `check_deletable()` in `scanner.py` is the allowlist+denylist gate.
+- `claude_tidy/ui/` — Flet views; every delete button goes through
+  `ui/delete_flow.run_delete_flow` (preview → confirm → `execute`).
+- `tests/fixtures/fake_claude.py` builds the fake `~/.claude` tree per test;
+  `tests/conftest.py` redirects all env-derived paths into tmp.
+- `main.py` — entry point for `flet build windows`.
 - No `.rtk/` runtime directory: this repo has no build/runtime artifacts that
   land inside the repo tree itself (the app's own backups/logs live under the
   end user's `%LOCALAPPDATA%`, not here), so it was skipped.

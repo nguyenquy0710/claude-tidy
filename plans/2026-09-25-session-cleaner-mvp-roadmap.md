@@ -1,7 +1,7 @@
 ---
 type: feature
 complexity: high
-status: planning
+status: in-progress
 related_issues: [QUYIT-741]
 related_prs: []
 estimated_hours: ~372 (≈ 46.5 person-days, gồm buffer)
@@ -33,6 +33,9 @@ estimated_hours: ~372 (≈ 46.5 person-days, gồm buffer)
 | F4 | Slug project (`D--nqdev-wps-dakia-group-dakia-crm`) mã hoá mất thông tin (`\`, `:`, `.` và `-` đều thành `-`) | Không decode slug ngược ra path; lấy tên hiển thị từ trường `cwd` trong `.jsonl` hoặc `sessions/*.json`. |
 | F5 | Có slug worktree (`...--claude-worktrees-happy-clarke-858e1b`) | Cân nhắc nhóm worktree dưới project cha trong UI (nice-to-have). |
 | F6 | Tài liệu có Scan cho cache Desktop + `%TEMP%\claude` nhưng UI chỉ mô tả màn project/session | **Thiếu màn hình** cho cache/temp → bổ sung task T15 (cần chốt scope). |
+| F7 | `procStart` là **Windows FILETIME** dạng chuỗi (100ns từ 1601-01-01), không phải epoch; đo thực tế lệch 0.0s so với `create_time()` | Phải quy đổi trước khi so; dung sai 1s. Parse sai đơn vị = mọi session đang chạy bị coi là mồ côi. |
+| F8 | Claude Desktop bản MSIX lưu dữ liệu thật ở `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`; `%APPDATA%\Claude` chỉ còn symlink `vm_bundles -> D:\ClaudeVM` | Resolver dò cả 2 vị trí; cache dùng **allowlist** thư mục (`Cache`, `Code Cache`, `GPUCache`, `Dawn*Cache`, `Crashpad`, `logs`); không bao giờ đi theo symlink/junction (`agents/`, `skills/` trong `~/.claude` cũng là link). |
+| F9 | Claude Code CLI cũng tên `claude.exe` | Nhận diện Claude Desktop đang chạy theo đường dẫn cài (`WindowsApps\Claude_*`, `AnthropicClaude`), loại trừ binary `claude-code`. |
 
 ### 1.2 Constraints
 
@@ -84,16 +87,16 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 ### M1 — Nền tảng
 
-- [ ] **T01 — Setup project & toolchain** (Gốc 1.5 → **2.5d**) · DevOps · Thấp
+- [~] **T01 — Setup project & toolchain** (Gốc 1.5 → **2.5d**) · DevOps · Thấp
   - Khởi tạo `pyproject.toml` (Python 3.11+, flet, psutil, send2trash, pytest), ruff, cấu trúc package
   - Cài Flutter SDK + VS C++ workload, chạy thử `flet build windows` với app "hello" để phát hiện sớm lỗi toolchain
   - Tăng 1d vì build Flet Windows lần đầu thường vướng môi trường
-- [ ] **T02 — Path resolver & Settings model** (**0.5d**, tách từ Settings) · Backend · Thấp
+- [x] **T02 — Path resolver & Settings model** (**0.5d**, tách từ Settings) · Backend · Thấp
   - Resolve các root dir, cho phép override qua biến môi trường/tham số để test
-- [ ] **T03 — Test fixtures `~/.claude` giả lập** (**1.5d**, mới) · QA · Trung bình
+- [x] **T03 — Test fixtures `~/.claude` giả lập** (**1.5d**, mới) · QA · Trung bình
   - Sinh cây thư mục giả: nhiều project, session bundle đầy đủ (F2), `memory/` (F3), `sessions/*.json` với PID sống/chết/tái sử dụng
   - Là nền cho mọi test của Active detection & Delete — không có thì không dám xoá thật
-- [ ] **T04 — Scan Engine** (**4d**) · Backend · Trung bình · phụ thuộc T02, T03
+- [x] **T04 — Scan Engine** (**4d**) · Backend · Trung bình · phụ thuộc T02, T03
   - Quét `projects/`, gom `SessionBundle` theo `sessionId` gồm cả `<sessionId>/`, `.wakatime`, `file-history/`, `session-env/`, `tasks/`
   - Đọc `cwd` + thời điểm ghi cuối từ `.jsonl` (chỉ đọc vài dòng đầu/cuối, không load cả file)
   - Quét cache `%APPDATA%\Claude` và `%TEMP%\claude` thành nhóm riêng
@@ -101,47 +104,47 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 ### M2 — Phân tích an toàn
 
-- [ ] **T05 — Project/Session Grouping API** (**2d**) · Backend · Trung bình · phụ thuộc T04
+- [x] **T05 — Project/Session Grouping API** (**2d**) · Backend · Trung bình · phụ thuộc T04
   - `list_projects()`, `list_sessions(project)`, `build_plan(mode=single|multi|all, ids)` → `DeletePlan`
   - Tên hiển thị project lấy từ `cwd` (F4)
-- [ ] **T06 — Disk Usage Analysis** (**1.5d**) · Backend · Thấp · phụ thuộc T04
+- [x] **T06 — Disk Usage Analysis** (**1.5d**) · Backend · Thấp · phụ thuộc T04
   - Dung lượng theo bundle / project / cache; tổng "sẽ giải phóng" cho dry-run
-- [ ] **T07 — Active Session Detection** (**2.5d**) · Backend · Cao (rủi ro cao nhất) · phụ thuộc T03, T04
+- [x] **T07 — Active Session Detection** (**2.5d**) · Backend · Cao (rủi ro cao nhất) · phụ thuộc T03, T04
   - Nguồn 1: `sessions/*.json` → `pid` còn sống **và** `create_time()` khớp `procStart` (F1)
   - Nguồn 2 (fallback): `.jsonl` có `LastWriteTime` < ngưỡng cấu hình (mặc định 5 phút) → coi là "có thể active"
   - Kết quả 3 trạng thái: `active` / `maybe_active` / `inactive`
   - Test đủ case: PID chết, PID tái sử dụng, file `sessions/*.json` hỏng, không có quyền đọc process
-- [ ] **T08 — Risk Level Indicator** (**1d**) · Backend · Trung bình · phụ thuộc T06, T07
+- [x] **T08 — Risk Level Indicator** (**1d**) · Backend · Trung bình · phụ thuộc T06, T07
   - Tiêu chí đã chốt (mục 6.3): danger = `active`; warning = `maybe_active` hoặc ghi lần cuối trong 24h; safe = còn lại
   - Ngưỡng 24h cấu hình được trong Settings (T13)
   - Badge chỉ để hiển thị; hành vi xoá vẫn theo mục 6.1 (warning do "mới dùng trong 24h" không bắt xác nhận lại)
 
 ### M3 — Xoá an toàn
 
-- [ ] **T09 — Backup (zip + manifest)** (**2d**, tách từ 4d gốc) · Backend · Cao · phụ thuộc T05
+- [x] **T09 — Backup (zip + manifest)** (**2d**, tách từ 4d gốc) · Backend · Cao · phụ thuộc T05
   - Zip vào `<backup_dir>/<timestamp>_<project>.zip`, kèm `manifest.json` (đường dẫn gốc, size, sha256)
   - Kiểm tra dung lượng ổ trống trước khi nén; verify zip sau khi ghi
-- [ ] **T10 — Delete pipeline** (**2d**, tách từ 4d gốc) · Backend · Cao · phụ thuộc T07, T09
+- [x] **T10 — Delete pipeline** (**2d**, tách từ 4d gốc) · Backend · Cao · phụ thuộc T07, T09
   - `execute(plan, on_progress)`: re-check active ngay trước khi xoá → backup → xoá → báo cáo
   - Chỉ xoá khi backup verify thành công; lỗi từng file (lock) ghi nhận, không dừng toàn batch
   - Active session trong nhóm (đã chốt, mục 6): `active` → soft-skip + báo cáo; `maybe_active` → trả về danh sách cần xác nhận, chỉ xoá những bundle người dùng đồng ý; không có cờ ép xoá
-- [ ] **T11 — Operation log** (**0.5d**, mới — tài liệu có trong pipeline nhưng chưa tính effort) · Backend · Thấp
+- [x] **T11 — Operation log** (**0.5d**, mới — tài liệu có trong pipeline nhưng chưa tính effort) · Backend · Thấp
   - JSON lines: thời gian, mode, danh sách bundle, đường dẫn zip, kết quả → input cho Restore
   - Kèm dọn backup quá hạn theo retention trong Settings (mặc định 14 ngày; bỏ qua nếu người dùng tắt auto-xoá)
 
 ### M4 — Giao diện
 
-- [ ] **T12 — GUI Project & Session Explorer** (**6d**) · Frontend heavy · Cao · phụ thuộc T05–T08
+- [x] **T12 — GUI Project & Session Explorer** (**6d**) · Frontend heavy · Cao · phụ thuộc T05–T08
   - Master-detail, checkbox multi-select, risk badge, 3 nút xoá
   - Dialog dry-run (danh sách + dung lượng), double-confirm nhập tên project cho "xoá tất cả"
   - Dry-run tách 3 nhóm: sẽ xoá / sẽ bỏ qua (`active`) / cần xác nhận (`maybe_active`, có checkbox riêng)
   - Báo cáo sau khi xoá liệt kê các session đã bỏ qua và lý do
   - Scan trong thread nền, không chặn UI với project có hàng nghìn session
-- [ ] **T13 — Trang Settings** (**1d**, 1.5d gốc − 0.5d đã tách sang T02) · Frontend · Trung bình
+- [x] **T13 — Trang Settings** (**1d**, 1.5d gốc − 0.5d đã tách sang T02) · Frontend · Trung bình
   - Thư mục backup (mặc định `%LOCALAPPDATA%\ClaudeTidy\backups\`), số ngày giữ backup (mặc định 14), công tắc bật/tắt auto-xoá backup, ngưỡng "có thể active" (mặc định 5 phút), ngưỡng "mới dùng" cho badge warning (mặc định 24h)
-- [ ] **T14 — Progress Tracking** (**1d**) · Full-stack · Thấp · phụ thuộc T10, T12
+- [x] **T14 — Progress Tracking** (**1d**) · Full-stack · Thấp · phụ thuộc T10, T12
   - Progress bar + đếm file, nút huỷ an toàn (dừng sau file hiện tại, không để bundle xoá dở)
-- [ ] **T15 — Màn Cache/Temp cleaner** (**1.5d**, mới — F6; đã chốt thuộc MVP) · Frontend · Thấp · phụ thuộc T04, T10
+- [x] **T15 — Màn Cache/Temp cleaner** (**1.5d**, mới — F6; đã chốt thuộc MVP) · Frontend · Thấp · phụ thuộc T04, T10
   - Danh sách nhóm cache Desktop / temp + dung lượng, cảnh báo nếu Claude Desktop đang chạy
 
 ### M5 — Đóng gói & QA
@@ -153,12 +156,12 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 Task ID mới đánh tiếp từ T20 để không làm lệch ID đã có.
 
-- [ ] **T20 — Dọn index mồ côi `sessions/<pid>.json`** (**1d**, mới — quyết định 6.5) · Full-stack · Thấp · phụ thuộc T07, T10
+- [x] **T20 — Dọn index mồ côi `sessions/<pid>.json`** (**1d**, mới — quyết định 6.5) · Full-stack · Thấp · phụ thuộc T07, T10
   - Mồ côi = PID không còn sống **hoặc** PID sống nhưng `create_time()` không khớp `procStart` (PID đã bị tái sử dụng)
   - Xoá kèm file `<pid>.<hash>.key` đi cùng
   - UI: danh sách từng file (cwd, tên session, thời điểm cập nhật cuối); **người dùng xác nhận từng file**, không có nút "xoá tất cả"
   - Vẫn đi qua pipeline T10 (backup + log) cho nhất quán
-- [ ] **T21 — Nhóm worktree dưới project cha** (**1.5d**, mới — quyết định 6.6) · Full-stack · Trung bình · phụ thuộc T05, T12
+- [x] **T21 — Nhóm worktree dưới project cha** (**1.5d**, mới — quyết định 6.6) · Full-stack · Trung bình · phụ thuộc T05, T12
   - Nhận diện worktree từ `cwd` chứa `\.claude\worktrees\<name>` (không dựa vào decode slug — F4); fallback theo pattern slug `<parent>--claude-worktrees-<name>`
   - Panel trái dạng cây: project cha → các worktree; worktree có thư mục đã bị xoá vẫn hiển thị (đánh dấu "worktree không còn tồn tại")
   - "Xoá tất cả" ở project cha: hỏi có áp dụng cho cả worktree con không (mặc định **không**)
@@ -185,6 +188,14 @@ Epic [QUYIT-741](https://nhquydev.atlassian.net/browse/QUYIT-741). Tất cả ta
 | T06 | QUYIT-747 | T13 | QUYIT-754 | T20 | QUYIT-761 |
 | T07 | QUYIT-748 | T14 | QUYIT-755 | T21 | QUYIT-762 |
 
+### Tiến độ thực hiện (2026-09-25)
+
+- Core `claude_tidy/core/` + UI `claude_tidy/ui/` đã có cho T02–T15, T20, T21; 60 test pytest pass trên fixture giả (`tests/fixtures/fake_claude.py`), `ruff` sạch.
+- UI smoke-test bằng cách khởi chạy app với cây giả lập: 4 màn render, dialog dry-run/xác nhận hoạt động. **Chưa** thao tác click thủ công đầy đủ — thuộc T16.
+- **T01 còn dở:** chưa chạy `flet build windows` vì máy dev chưa cài Flutter SDK + VS C++ workload. `pyproject.toml` đã có `[tool.flet]`, entry `main.py`.
+- **T16 chưa làm:** build `.exe`, chạy trên máy sạch, thử với `~/.claude` thật (đã backup).
+- Quyết định chưa có trong mục 6: không đọc được process (`AccessDenied`) → coi là `maybe_active` (hỏi lại người dùng), không coi là chết.
+
 ### Tổng hợp effort
 
 | Hạng mục | Gốc | Điều chỉnh v1 | Điều chỉnh v2 (sau khi chốt 6.4–6.6) |
@@ -208,7 +219,7 @@ Chênh lệch v2 (+2.5d): dọn index mồ côi T20 (+1d), nhóm worktree T21 (+
 - **Risk 4 — Toolchain `flet build windows`:** → **Mitigation:** build thử ngay ở T01, không để đến cuối.
 - **Risk 5 — File bị lock (Claude Desktop đang chạy):** → **Mitigation:** xử lý lỗi từng file, báo cáo cuối; cảnh báo trước ở T15.
 - **Unknown 1 — Ý nghĩa `status` trong `sessions/*.json` (`idle`, …) có đủ tin cậy làm tín hiệu không:** → **Plan:** khảo sát thêm vài session đang chạy/đã tắt khi làm T07.
-- **Unknown 2 — Kích thước dữ liệu thực tế (số session lớn nhất / project):** → **Plan:** đo trên máy dev ở T04 để quyết định có cần lazy-load danh sách ở T12.
+- ~~**Unknown 2 — Kích thước dữ liệu thực tế**~~ → **Đã đo (2026-09-25, read-only):** 51 project, 628 session, tối đa 101 session/project, 503 MB, scan 2.66s → chưa cần lazy-load; scan chạy trong thread nền.
 
 ## 5. Success Criteria
 
