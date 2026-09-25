@@ -182,15 +182,11 @@ Tiết kiệm khoảng 11.5 ngày vì core và test core đã xong. Phần UI l�
 
 ## 6. Questions / Dependencies
 
-1. **Chuyển sang pywebview đã chốt chưa, và xử lý thay đổi ttkbootstrap chưa commit thế nào?** Bản ttkbootstrap vừa xong và đang được chỉnh giao diện (`theme.py`).
-   → *Đề xuất:* nếu lý do đổi là **giao diện đẹp hơn / gần prototype** thì pywebview hợp lý. Commit các thay đổi ttkbootstrap hiện tại trước (để còn đường quay lại), rồi làm T33. Nếu spike T33 gặp vấn đề nặng (pythonnet/antivirus) thì dừng và giữ ttkbootstrap.
-2. **PyInstaller `--onefile` (như tài liệu) hay `--onedir`?**
-   → *Đề xuất:* **onedir**, theo số đo khởi động đã có (E5). Sửa lại tài liệu.
-3. **WebView2: đóng kèm bộ cài hay giả định máy đã có?**
-   → *Đề xuất:* giả định đã có (Windows 10 1803+ / 11), kiểm tra khi khởi động và hiện link tải bộ cài Evergreen nếu thiếu. Không đóng kèm, vì installer nằm ngoài scope.
-4. **JS thuần hay Alpine.js?**
-   → *Đề xuất:* Alpine.js bản local (khoảng 15KB, không cần bước build), đủ cho modal và state checkbox, bớt code thao tác DOM thủ công.
-5. **Sửa lại tài liệu theo E1–E6?**
-   → *Đề xuất:* có (T43). Riêng hai câu hỏi đã chốt (E3, E4) nên sửa ngay khi commit tài liệu, để không ai làm theo bản sai.
-6. **Jira:** tạo T33–T43 dưới epic QUYIT-741 bằng `/jira-nqdev-insight-create-issue`. T31 (QUYIT-772) được gộp vào T42.
-   → *Đề xuất:* tạo sau khi chốt câu 1.
+Tất cả đã chốt ngày 2026-09-25 (chủ dự án đồng ý toàn bộ đề xuất):
+
+1. ✅ **Chuyển sang pywebview — đã chắc chắn.** Các thay đổi ttkbootstrap chưa commit (`theme.py` + 4 file UI) được commit trước để còn đường quay lại. Nếu spike T33 gặp vấn đề nặng (pythonnet/antivirus) thì dừng và giữ ttkbootstrap.
+2. ✅ **Đóng gói: `--onedir`**, theo số đo khởi động đã có (E5).
+3. ✅ **WebView2: giả định máy đã có** (Windows 10 1803+ / 11), kiểm tra khi khởi động và hiện link tải bộ cài Evergreen nếu thiếu. Không đóng kèm bộ cài.
+4. ✅ **Frontend: Alpine.js bản local**, không có bước build.
+5. ✅ **Sửa tài liệu theo E1–E6: làm ngay** cùng lúc commit tài liệu pywebview, không đợi tới T43. T43 chỉ còn cập nhật phần phát sinh trong lúc làm.
+6. ✅ **Jira:** tạo T33–T43 dưới epic QUYIT-741 bằng `/jira-nqdev-insight-create-issue`. T31 (QUYIT-772) được gộp vào T42.
