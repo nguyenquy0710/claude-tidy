@@ -31,6 +31,8 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# ...except our own, hand-written and version-controlled build spec (T30).
+!/claude-tidy.spec
 
 # Installer logs
 pip-log.txt

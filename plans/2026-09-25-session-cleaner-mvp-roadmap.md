@@ -10,7 +10,10 @@ estimated_hours: ~372 (≈ 46.5 person-days, gồm buffer)
 # Kế hoạch: Claude Session/Cache Cleaner (Python + Flet) — phân rã task MVP & Phase 2
 
 > **Ngày lập kế hoạch:** 2026-09-25
-> **Nguồn yêu cầu:** [docs/claude-session-cleaner-idea.md](../docs/claude-session-cleaner-idea.md)
+> **Nguồn yêu cầu:** `docs/claude-session-cleaner-idea.md` (đường dẫn cũ — file
+> này sau đó được rename thành [docs/claude-tidy-plan.md](../docs/claude-tidy-plan.md)
+> khi UI chuyển sang ttkbootstrap; xem `git log --follow` để lấy đúng nội dung
+> tại thời điểm viết plan này)
 > **Scope dự kiến:** repo greenfield `claude-tidy` — package `claude_tidy/` (core + ui), `tests/`, cấu hình build Flet
 > **Priority:** high
 > **Assumption:** 1 senior dev Python, chỉ build Windows, chưa có code nào trong repo

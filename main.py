@@ -1,4 +1,4 @@
-"""Entry point used by `flet build windows`."""
+"""Entry point used by PyInstaller (see claude-tidy.spec)."""
 
 from claude_tidy.__main__ import main
 

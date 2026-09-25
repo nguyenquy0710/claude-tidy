@@ -1,7 +1,7 @@
 ---
 type: refactor
 complexity: medium
-status: planning
+status: in-progress
 related_issues: [QUYIT-741, QUYIT-742, QUYIT-757]
 related_prs: []
 estimated_hours: ~150 (≈ 19 person-days, gồm buffer)
@@ -83,52 +83,52 @@ Task ID đánh tiếp từ **T22** để không trùng T01–T21 của roadmap g
 
 ### U-M1 — Spike & nền
 
-- [ ] **T22 — Spike ttkbootstrap + PyInstaller** (**1d**) · DevOps · Trung bình
+- [x] **T22 — Spike ttkbootstrap + PyInstaller** (**1d**) · DevOps · Trung bình
   - App "hello" ttkbootstrap → `pyinstaller --onefile --windowed`, chạy `.exe` trên máy dev
   - Kiểm tra: theme/asset của ttkbootstrap có vào bundle không (có thể cần `--collect-data ttkbootstrap`), thời gian khởi động onefile, Windows Defender có báo nhầm không
   - Bật DPI awareness (`ctypes.windll.shcore.SetProcessDpiAwareness`) để chữ không bị mờ trên màn hình scale 125–150%
   - Kết quả spike quyết định câu hỏi 6.2 (onefile hay onedir)
-- [ ] **T23 — Khung UI: cửa sổ chính, Notebook, `ui_dispatch`** (**1.5d**) · Frontend · Trung bình · phụ thuộc T22
+- [x] **T23 — Khung UI: cửa sổ chính, Notebook, `ui_dispatch`** (**1.5d**) · Frontend · Trung bình · phụ thuộc T22
   - `app.py`: `ttkbootstrap.Window`, Notebook 4 tab, giữ `AppState`
   - `ui/threading.py` (hoặc tên tương đương): `run_in_background(work, on_done)` + `ui_dispatch(fn)` qua queue + `root.after`
   - Test đơn vị cho dispatcher: không cần hiển thị cửa sổ, chỉ cần test logic hàng đợi
-- [ ] **T24 — Widget `CheckTreeview` dùng chung** (**1.5d**) · Frontend · Trung bình · phụ thuộc T23
+- [x] **T24 — Widget `CheckTreeview` dùng chung** (**1.5d**) · Frontend · Trung bình · phụ thuộc T23
   - Cột checkbox, tick/untick bằng click hoặc phím Space, tick-all, `checked_ids()`
   - Tag màu theo `RiskLevel`, dùng lại **một** bảng màu `BADGE` chung
   - Hỗ trợ cây 2 cấp (project → worktree) cho T25
 
 ### U-M2 — Port các màn
 
-- [ ] **T25 — Explorer view** (**3d**) · Frontend heavy · Cao · phụ thuộc T24
+- [x] **T25 — Explorer view** (**3d**) · Frontend heavy · Cao · phụ thuộc T24
   - Panel trái: cây project, worktree lồng dưới project cha (giữ hành vi T21)
   - Panel phải: danh sách session có checkbox, badge, dung lượng, thời điểm ghi cuối
   - 3 nút xoá: 1 session / các session đã tick / tất cả của project; cả ba đều gọi `run_delete_flow`
   - Scan trên thread nền, có trạng thái "Đang quét…"; `rescan()` sau khi xoá xong
-- [ ] **T26 — `delete_flow` bản ttkbootstrap** (**2d**) · Frontend · **Cao (an toàn)** · phụ thuộc T23, T24
+- [x] **T26 — `delete_flow` bản ttkbootstrap** (**2d**) · Frontend · **Cao (an toàn)** · phụ thuộc T23, T24
   - Dialog modal (`Toplevel` + `grab_set`) có 3 nhóm: Sẽ xoá / Có thể đang dùng (checkbox) / Sẽ bỏ qua
   - Ô nhập tên project cho "xoá tất cả"; nút Xoá bị khoá tới khi nhập khớp
   - Dialog tiến độ có `Progressbar` và nút huỷ (`threading.Event`); `on_progress` luôn đi qua `ui_dispatch`
   - Dialog kết quả liệt kê: đã xoá, dung lượng giải phóng, đường dẫn backup (copy được), mục bị bỏ qua, mục chưa xác nhận, file lỗi
   - Gọi `prune_backups` sau khi xoá, giống bản hiện tại
-- [ ] **T27 — Màn Cache/Temp + Index mồ côi** (**1.5d**) · Frontend · Thấp · phụ thuộc T26
+- [x] **T27 — Màn Cache/Temp + Index mồ côi** (**1.5d**) · Frontend · Thấp · phụ thuộc T26
   - Giữ cảnh báo khi Claude Desktop đang chạy
   - Index mồ côi: người dùng xác nhận **từng file**, không có nút xoá tất cả (quyết định 6.5 của roadmap gốc)
-- [ ] **T28 — Màn Settings** (**1d**) · Frontend · Thấp · phụ thuộc T23
+- [x] **T28 — Màn Settings** (**1d**) · Frontend · Thấp · phụ thuộc T23
   - Thư mục backup (`filedialog.askdirectory`), số ngày giữ, bật/tắt auto-xoá, ngưỡng 5 phút, ngưỡng 24h
   - Kiểm tra dữ liệu nhập (số nguyên dương) trước khi gọi `save_settings`
 
 ### U-M3 — Gỡ Flet, đóng gói, QA
 
-- [ ] **T29 — Gỡ Flet** (**0.5d**) · DevOps · Thấp · phụ thuộc T25–T28
+- [x] **T29 — Gỡ Flet** (**0.5d**) · DevOps · Thấp · phụ thuộc T25–T28
   - Xoá code Flet cũ; `pyproject.toml`: bỏ `flet` và `[tool.flet]`, thêm `ttkbootstrap`, thêm `pyinstaller` vào `dev`
   - Cập nhật `main.py`, `claude_tidy/__main__.py`, root `CLAUDE.md` và `claude_tidy/ui/CLAUDE.md` (thay `page.run_thread` bằng `ui_dispatch`, thay `NavigationRail` bằng `Notebook`)
-- [ ] **T30 — Đóng gói PyInstaller** (**1.5d**, thay cho T01 + T16 của roadmap gốc) · DevOps · Trung bình · phụ thuộc T22, T29
+- [x] **T30 — Đóng gói PyInstaller** (**1.5d**, thay cho T01 + T16 của roadmap gốc) · DevOps · Trung bình · phụ thuộc T22, T29
   - File `.spec` commit vào repo, icon, version info (`--version-file`), script build 1 lệnh
   - Smoke test `.exe` trên máy/VM sạch không cài Python, dùng `~/.claude` thật đã backup trước
-- [ ] **T31 — Checklist smoke test UI** (**1d**) · QA · Trung bình · phụ thuộc T30
+- [~] **T31 — Checklist smoke test UI** (**1d**) · QA · Trung bình · phụ thuộc T30
   - Kịch bản thủ công: 3 chế độ xoá, session `ACTIVE` bị bỏ qua, `MAYBE_ACTIVE` phải tick mới xoá, huỷ giữa chừng, project có ≥ 1.000 session không treo UI, DPI 150%
   - `pytest` và `ruff` phải sạch (core không đổi nên test cũ vẫn phải pass nguyên vẹn)
-- [ ] **T32 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp
+- [x] **T32 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp
   - Sửa `docs/claude-tidy-plan.md` theo bảng D1–D6 (mục 1.3)
   - Quyết định số phận `docs/claude-session-cleaner-idea.md`: giữ làm lịch sử (thêm dòng "đã thay bằng…") hay xoá (câu hỏi 6.3)
 
@@ -149,6 +149,32 @@ Task ID đánh tiếp từ **T22** để không trùng T01–T21 của roadmap g
 Tiết kiệm được khoảng 12 ngày vì Scan, Grouping, Disk usage, Active detection, Backup, Risk và toàn bộ test core đã xong. Riêng phần GUI (T24–T28, 9d) **không** rẻ hơn estimate của tài liệu: Tk thiếu checkbox trong Treeview và bắt buộc tự marshal thread.
 
 **Chưa bao gồm:** code-sign `.exe` (liên quan trực tiếp tới rủi ro Defender báo nhầm, xem Risk 2), installer, auto-update, macOS/Linux, Phase 2.
+
+### Tiến độ thực hiện (2026-09-25)
+
+- T22–T30, T32 xong. `claude_tidy/ui/` viết lại hoàn toàn bằng ttkbootstrap
+  (`dispatch.py`, `widgets.py`, `app.py`, `explorer.py`, `delete_flow.py`,
+  `other_views.py`); không còn `import flet` trong repo; `pyproject.toml` đã
+  thay `flet` bằng `ttkbootstrap` + `pyinstaller`. 66 test pytest pass
+  (60 core cũ không đổi + 6 test mới cho `ui/dispatch.py`), `ruff` sạch.
+- Build `.exe` (T30) đã chạy thật: `pyinstaller claude-tidy.spec` ra
+  `dist/claude-tidy/claude-tidy.exe` (~36MB, onedir), khởi động và sống được
+  trên máy dev với `~/.claude` giả lập qua biến môi trường.
+- **T31 chỉ làm được một phần (đánh dấu `[~]`, không phải `[x]`):** không có
+  máy/VM sạch để chạy checklist thủ công đầy đủ (DPI 150%, project ≥ 1.000
+  session, antivirus). Thay vào đó đã chạy **smoke test có kịch bản** (script
+  Python điều khiển Tk thật, không phải test giả lập) xác nhận: cả 4 tab
+  dựng được; luồng xoá đầy đủ đi qua UI thật — mở preview → tick checkbox
+  "có thể đang dùng" → nút Xoá bật/tắt đúng → bấm Xoá → file bị xoá thật +
+  backup zip được tạo + dialog kết quả hiện ra; ô nhập tên project cho "xoá
+  tất cả" khoá/mở nút đúng khi gõ sai/đúng tên. Việc này phát hiện một bug
+  thật (`tb.Toplevel(root, title=...)` ném `TypeError` vì tham số đầu của
+  `tb.Toplevel` là `title`, không phải parent như `tkinter.Toplevel` chuẩn) —
+  bug không bị 66 test pytest bắt được vì không test nào tạo `tb.Toplevel`
+  thật; đã ghi lại cách dùng đúng trong `claude_tidy/ui/CLAUDE.md`.
+- Chưa làm: kiểm tra Windows Defender/antivirus báo nhầm với `.exe` chưa ký
+  (Risk 2), và mục 4 trong câu hỏi mở (cập nhật Jira QUYIT-742/QUYIT-757) —
+  cần chủ dự án xác nhận trước khi đổi trạng thái Jira.
 
 ## 4. Risks & Unknowns
 
@@ -171,13 +197,20 @@ Tiết kiệm được khoảng 12 ngày vì Scan, Grouping, Disk usage, Active 
 
 ## 6. Questions / Dependencies
 
-1. **Thay hẳn Flet hay giữ song song?**
-   → *Đề xuất:* **thay hẳn** sau khi đạt tương đương (T29). Giữ song song thì luồng xoá an toàn phải bảo trì ở hai nơi.
-2. **PyInstaller `--onefile` (như tài liệu) hay `--onedir`?**
-   → *Đề xuất:* thử onefile ở T22. Nếu khởi động > 3 giây hoặc bị antivirus báo nhầm thì chuyển onedir + zip.
-3. **Tài liệu cũ `docs/claude-session-cleaner-idea.md`:**
-   → *Đề xuất:* giữ lại làm lịch sử, thêm dòng đầu "Đã thay bằng `claude-tidy-plan.md` (2026-09-25)"; sửa tài liệu mới theo D1–D6.
+1. ✅ **Đã chốt — Thay hẳn Flet hay giữ song song?**
+   → **Thay hẳn** (T29): xoá toàn bộ code Flet, không còn `import flet` trong repo.
+2. ✅ **Đã chốt (đo ở T22) — PyInstaller `--onefile` hay `--onedir`?**
+   → **`--onedir`**. Spike đo onefile cold-start 3.6–5.4s (3 lần chạy), vượt
+   ngưỡng 3 giây đã đặt ra; onedir chỉ ~1–2.2s. `claude-tidy.spec` dùng onedir.
+   Chưa kiểm được mục antivirus báo nhầm (không có máy sạch để thử).
+3. ✅ **Đã xử lý — Tài liệu cũ `docs/claude-session-cleaner-idea.md`:**
+   Thực tế **không còn tồn tại dưới tên cũ** — trước khi task này được thực
+   hiện, một commit khác đã **rename thẳng** file đó thành `claude-tidy-plan.md`
+   (không tạo file song song). Nội dung lịch sử vẫn lấy được qua
+   `git log --follow -- docs/claude-tidy-plan.md`, nên không cần khôi phục lại
+   file cũ; đã sửa `docs/claude-tidy-plan.md` theo D1–D6 và cập nhật các
+   CLAUDE.md từng trỏ tới tên file cũ.
 4. **Jira:** QUYIT-742 (T01 `flet build`) và QUYIT-757 (T16 packaging) không còn đúng. Các task UI đã làm bằng Flet (T12–T15, T21) nay phải làm lại.
-   → *Đề xuất:* chuyển QUYIT-742 / QUYIT-757 sang trạng thái huỷ hoặc thay thế, rồi tạo T22–T32 dưới epic QUYIT-741 bằng `/jira-nqdev-insight-create-issue`.
-5. **Theme ttkbootstrap mặc định** (vd `cosmo` sáng / `darkly` tối) và có cho đổi theme trong Settings không?
-   → *Đề xuất:* mặc định `cosmo`, chưa cho đổi trong MVP.
+   → *Đề xuất:* chuyển QUYIT-742 / QUYIT-757 sang trạng thái huỷ hoặc thay thế, rồi tạo T22–T32 dưới epic QUYIT-741 bằng `/jira-nqdev-insight-create-issue`. **Chưa làm** — cần chủ dự án xác nhận trước khi đổi trạng thái Jira.
+5. ✅ **Đã chốt — Theme ttkbootstrap mặc định:**
+   `cosmo`, chưa cho đổi theme trong Settings (đúng như đề xuất ban đầu).

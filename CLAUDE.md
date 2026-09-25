@@ -8,27 +8,33 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 data and Claude Desktop cache, with backup, active-session detection, and
 per-project session management.
 
-The MVP core (`claude_tidy/core/`), Flet UI (`claude_tidy/ui/`) and pytest
-suite (`tests/`) exist; packaging (`flet build windows`, T16) is not done yet.
-Setup: `python -m venv .venv && .venv/Scripts/pip install -e .[dev]`, then
-`.venv/Scripts/python -m pytest` / `ruff check .` / `python -m claude_tidy`.
-Treat `docs/claude-session-cleaner-idea.md`
-(the product spec) and `plans/2026-09-25-session-cleaner-mvp-roadmap.md` (the task
-breakdown, including §6 "Questions / Dependencies" — all resolved as of
-2026-09-25) as the source of truth for scope, architecture, and prior
-decisions — read both before implementing anything. Do not re-derive the
-architecture from scratch; it is already designed there. Remaining open work
-is just `T01` (verify `flet build windows` — the dev machine doesn't have the
-Flutter SDK / VS C++ workload installed yet) and `T16` (packaging + smoke
-test on a clean machine).
+The MVP core (`claude_tidy/core/`), ttkbootstrap UI (`claude_tidy/ui/`) and
+pytest suite (`tests/`) exist, including PyInstaller packaging
+(`claude-tidy.spec`, onedir). Setup: `python -m venv .venv && .venv/Scripts/pip
+install -e .[dev]`, then `.venv/Scripts/python -m pytest` / `ruff check .` /
+`python -m claude_tidy`. Build: `.venv/Scripts/pyinstaller claude-tidy.spec`
+→ `dist/claude-tidy/claude-tidy.exe`.
+
+The UI was originally built with Flet, then migrated to ttkbootstrap +
+PyInstaller — see
+[plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](plans/2026-09-25-ttkbootstrap-ui-migration-planning.md)
+for why (Flet's Windows build needed a Flutter SDK/VS C++ toolchain this dev
+machine didn't have) and what changed. `claude_tidy/core/` and `tests/` were
+**not** touched by that migration. Treat
+`plans/2026-09-25-session-cleaner-mvp-roadmap.md` (original scope/architecture,
+§6 "Questions / Dependencies" all resolved as of 2026-09-25) and the migration
+plan above as the source of truth — read both before implementing anything.
+Do not re-derive the architecture from scratch; it is already designed there.
+Remaining open work: a smoke test on an actually clean VM (the local smoke
+test in the migration plan ran on the dev machine, not a clean one).
 
 ## Tech stack
 
 | Component | Choice |
 |---|---|
 | Language | Python 3.11+ |
-| GUI framework | Flet |
-| Packaging | `flet build windows` → `.exe` |
+| GUI framework | ttkbootstrap (Tkinter + Bootstrap-style theming) |
+| Packaging | PyInstaller, `--onedir` (`claude-tidy.spec`) → `dist/claude-tidy/claude-tidy.exe` |
 | Safe deletion | Backup to timestamped `.zip` + manifest (not `send2trash`/Recycle Bin — see rationale below) |
 | Process detection | `psutil` (PID liveness + `create_time()` to defeat PID reuse) |
 | Testing | `pytest`, with fixtures simulating a fake `~/.claude` tree |
@@ -39,12 +45,12 @@ Out of scope: macOS/Linux builds, code-signing/installer, auto-update.
 ## Architecture
 
 Two-layer design, core logic independent of the UI so the dangerous parts
-(active-session detection, deletion) are unit-testable without launching Flet:
+(active-session detection, deletion) are unit-testable without launching a GUI:
 
 ```
 claude_tidy/
-  core/       # filesystem + safety logic — no Flet import anywhere in here
-  ui/         # Flet views; every delete goes through ui/delete_flow.py
+  core/       # filesystem + safety logic — no Tk/ttkbootstrap import anywhere in here
+  ui/         # ttkbootstrap views; every delete goes through ui/delete_flow.py
 tests/
   fixtures/   # fake ~/.claude tree, regenerated per test
 ```
@@ -52,7 +58,7 @@ tests/
 See [claude_tidy/CLAUDE.md](claude_tidy/CLAUDE.md) for the package-level
 conventions, [claude_tidy/core/CLAUDE.md](claude_tidy/core/CLAUDE.md) for the
 deletion-pipeline internals, [claude_tidy/ui/CLAUDE.md](claude_tidy/ui/CLAUDE.md)
-for the Flet layer, and [tests/CLAUDE.md](tests/CLAUDE.md) for the test
+for the ttkbootstrap layer, and [tests/CLAUDE.md](tests/CLAUDE.md) for the test
 harness — each is scoped to that directory and takes precedence over this
 file for anything specific to it.
 
@@ -132,14 +138,19 @@ See [tests/CLAUDE.md](tests/CLAUDE.md) for fixture-level detail.
 
 ## Repo layout today
 
-- `docs/claude-session-cleaner-idea.md` — product spec (Vietnamese). See [docs/CLAUDE.md](docs/CLAUDE.md).
+- `docs/claude-tidy-plan.md` — current product spec (Vietnamese, ttkbootstrap +
+  PyInstaller). It's a rename of the original `claude-session-cleaner-idea.md`
+  (Flet version) — that filename no longer exists on disk; its content is
+  reachable via `git log --follow docs/claude-tidy-plan.md`. See [docs/CLAUDE.md](docs/CLAUDE.md).
 - `plans/*.md` — execution plans / task breakdowns. See [plans/CLAUDE.md](plans/CLAUDE.md).
 - `claude_tidy/` — the package; see [claude_tidy/CLAUDE.md](claude_tidy/CLAUDE.md),
   [claude_tidy/core/CLAUDE.md](claude_tidy/core/CLAUDE.md), and
   [claude_tidy/ui/CLAUDE.md](claude_tidy/ui/CLAUDE.md).
 - `tests/` — pytest suite; see [tests/CLAUDE.md](tests/CLAUDE.md).
-- `main.py` — entry point for `flet build windows`; `pyproject.toml` has the
-  `[tool.flet]` build config and the `claude-tidy` console script.
+- `main.py` — entry point PyInstaller bundles; `claude-tidy.spec` is the
+  version-controlled build spec (`--onedir`, see Tech stack above);
+  `pyproject.toml`'s `dev` extra has `pyinstaller` and `ttkbootstrap`.
 - No `.rtk/` runtime directory: this repo has no build/runtime artifacts that
   land inside the repo tree itself (the app's own backups/logs live under the
-  end user's `%LOCALAPPDATA%`, not here), so it was skipped.
+  end user's `%LOCALAPPDATA%`, not here; `build/`/`dist/` from PyInstaller are
+  gitignored), so it was skipped.

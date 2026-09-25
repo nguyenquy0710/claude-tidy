@@ -6,14 +6,18 @@ for anything not covered here.
 ## Purpose
 
 Product/design documentation — specs, idea write-ups, architecture rationale.
-Currently: `claude-session-cleaner-idea.md`, the original product spec that
-`plans/2026-09-25-session-cleaner-mvp-roadmap.md` was derived from.
+Currently: `claude-tidy-plan.md`, the current product spec (ttkbootstrap +
+PyInstaller). It's a rename of the original `claude-session-cleaner-idea.md`
+(the Flet-based spec `plans/2026-09-25-session-cleaner-mvp-roadmap.md` was
+derived from) — that filename doesn't exist on disk anymore; find its old
+content with `git log --follow -- docs/claude-tidy-plan.md`, not by looking
+for the old path.
 
 ## Conventions
 
 - Written in Vietnamese, matching the existing doc — keep new docs in the same
   language unless the user asks otherwise.
-- Structure mirrors `claude-session-cleaner-idea.md`: numbered sections
+- Structure mirrors `claude-tidy-plan.md`: numbered sections
   (bối cảnh & mục tiêu, tech stack, UI, pipeline, module breakdown, risks,
   open questions). Keep an explicit "open questions" section — this project
   has real unresolved product decisions (see root CLAUDE.md's safety rules,

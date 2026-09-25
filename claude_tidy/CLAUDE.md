@@ -7,9 +7,10 @@ first, it applies to everything under here.
 ## Layout
 
 - `core/` — filesystem scanning, activity detection, risk classification,
-  backup, and the single deletion pipeline. No `flet` import belongs in this
-  package; it must stay unit-testable without a GUI. See [core/CLAUDE.md](core/CLAUDE.md).
-- `ui/` — Flet views and the one delete-flow entry point. See [ui/CLAUDE.md](ui/CLAUDE.md).
+  backup, and the single deletion pipeline. No `tkinter`/`ttkbootstrap` import
+  belongs in this package; it must stay unit-testable without a GUI. See
+  [core/CLAUDE.md](core/CLAUDE.md).
+- `ui/` — ttkbootstrap views and the one delete-flow entry point. See [ui/CLAUDE.md](ui/CLAUDE.md).
 - `__main__.py` — `python -m claude_tidy` entry point; just wires logging and
   calls `ui.app.run()`.
 
@@ -25,3 +26,8 @@ first, it applies to everything under here.
 - Vietnamese is the UI's user-facing language (labels, dialogs, status text)
   — keep new UI strings in Vietnamese to match the existing views. Code
   identifiers, docstrings, and comments stay in English.
+- `ui/` was rewritten from Flet to ttkbootstrap on 2026-09-25 — see
+  [plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md).
+  If you find a stray `flet` import or reference, it's a leftover to remove,
+  not a second UI to maintain (root CLAUDE.md rule: one deletion pipeline,
+  one UI).

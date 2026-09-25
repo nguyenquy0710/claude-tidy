@@ -5,7 +5,7 @@ description = "Safely clean up Claude Code session data and Claude Desktop cache
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "flet>=1.0",
+    "ttkbootstrap>=1.10",
     "psutil>=5.9",
 ]
 
@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "pytest>=8",
     "ruff>=0.6",
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]
@@ -24,14 +25,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["claude_tidy*"]
-
-[tool.flet]
-org = "dev.nqdev"
-product = "Claude Tidy"
-company = "nqdev"
-
-[tool.flet.app]
-path = "."
 
 [tool.ruff]
 line-length = 100

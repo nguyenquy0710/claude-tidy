@@ -19,45 +19,56 @@ Bản viết lại bằng **Python**, build thành desktop app native cho Window
 |---|---|
 | Ngôn ngữ | Python 3.11+ |
 | GUI framework | **ttkbootstrap** (Tkinter + theme Bootstrap-style) |
-| Đóng gói | PyInstaller (`--onefile --windowed`) → `.exe` |
-| An toàn xoá file | `send2trash` (Recycle Bin) hoặc backup zip tự viết |
-| Detect process | `psutil` (kiểm tra PID còn sống) |
+| Đóng gói | PyInstaller `--onedir --windowed` (`claude-tidy.spec`) → `dist/claude-tidy/claude-tidy.exe`. **Không dùng `--onefile`**: spike đo cold-start 3.6–5.4s (giải nén `%TEMP%\_MEIxxxx` mỗi lần chạy), vượt ngưỡng 3s; `--onedir` chỉ ~1–2.2s. |
+| An toàn xoá file | Chỉ backup zip + manifest (sha256 từng file, verify trước khi xoá) — **không dùng `send2trash`/Recycle Bin**, vì zip+manifest mới Restore theo lô chính xác được (Phase 2) |
+| Detect process | `psutil` — so `Process(pid).create_time()` với `procStart` ghi trong `sessions/<pid>.json`, **không chỉ `pid_exists()`** (PID bị OS tái sử dụng thì `pid_exists()` vẫn `True` nhưng là process khác) |
 
 **Không nằm trong scope:** build macOS/Linux, code-sign installer, auto-update mechanism.
 
 ## 3. Cấu trúc UI
 
-- **Trang chính** — master-detail layout:
-  - Panel trái: danh sách **project** (đọc từ slug thư mục trong `~/.claude/projects/`)
+4 tab (`ttk.Notebook`):
+
+- **Sessions** — master-detail layout:
+  - Panel trái: cây **project** (`ttk.Treeview`, đọc từ slug thư mục trong `~/.claude/projects/`), worktree lồng dưới project cha (nhận diện qua `cwd`, không decode slug)
   - Panel phải: danh sách **session** của project đang chọn, mỗi dòng có checkbox + risk badge (safe/warning/danger)
   - 3 hành động xoá:
     - Xoá 1 session
     - Xoá các session đã tick (multi-select)
-    - Xoá tất cả session của project (có bước xác nhận kép — nhập tên project hoặc double-confirm)
-- **Trang cấu hình (Settings)**:
-  - Đường dẫn lưu backup
-  - Thời gian giữ backup trước khi tự xoá
-  - Ngưỡng thời gian coi là "có thể đang active" (ví dụ < 5 phút từ lần ghi cuối)
+    - Xoá tất cả session của project (xác nhận kép — nhập đúng tên project mới bật nút Xoá)
+- **Cache/Temp** — danh sách nhóm cache Claude Desktop + `%TEMP%\claude`, cảnh báo nếu Claude Desktop đang chạy, xoá thật qua cùng pipeline
+- **Index mồ côi** — file `sessions/<pid>.json` của process đã tắt hoặc PID bị tái sử dụng; **xác nhận từng file riêng**, không có nút "xoá tất cả"
+- **Cài đặt**:
+  - Đường dẫn lưu backup (mặc định `%LOCALAPPDATA%\ClaudeTidy\backups\`)
+  - Số ngày giữ backup trước khi tự xoá (mặc định 14 ngày), công tắc bật/tắt auto-xoá
+  - Ngưỡng thời gian coi là "có thể đang active" (mặc định 5 phút từ lần ghi cuối)
+  - Ngưỡng "mới dùng" cho badge cảnh báo (mặc định 24h)
 
-## 4. Pipeline xoá (áp dụng cho cả 3 chế độ xoá)
+## 4. Pipeline xoá (áp dụng cho cả 4 chế độ xoá: single / multi / all / cache / index mồ côi)
 
 ```
-Chọn session(s) cần xoá
+Chọn mục cần xoá
         ↓
-Active Session Detection (chặn/soft-skip session đang mở)
+Active Session Detection (re-check ngay trước khi xoá, không chỉ lúc build plan)
         ↓
-Dry-run preview (hiển thị danh sách sẽ xoá + dung lượng giải phóng)
+Dry-run preview (3 nhóm: sẽ xoá / cần xác nhận / sẽ bỏ qua)
         ↓
-Backup: nén .zip vào thư mục backup có timestamp
+Backup: nén .zip + manifest (sha256), verify trước khi xoá
         ↓
-Xoá file gốc
+Xoá đúng những gì backup đã ghi nhận
         ↓
 Ghi log thao tác (phục vụ Restore ở Phase 2)
 ```
 
-> **Câu hỏi mở chưa chốt:** khi có session active nằm trong nhóm bị chọn xoá (multi-select / xoá tất cả) — nên **tự động bỏ qua và xoá phần còn lại** (soft-skip, báo cáo sau), hay **chặn toàn bộ thao tác** bắt người dùng bỏ chọn thủ công?
+**Đã chốt** (không còn là câu hỏi mở): session `active` → tự động bỏ qua (soft-skip), không có cách nào ép xoá kể cả ở "xoá tất cả"; session `maybe_active` (bao gồm cả khi không đọc được process — `psutil.AccessDenied`) → chỉ xoá nếu người dùng tick xác nhận từng mục trong dialog preview.
 
 ## 5. Module — Phase 1 (MVP)
+
+**Đã hoàn thành** (2026-09-25) — xem chi tiết task/effort thực tế trong
+[plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md)
+(T22–T32) và [plans/2026-09-25-session-cleaner-mvp-roadmap.md](../plans/2026-09-25-session-cleaner-mvp-roadmap.md)
+(T02–T21, phần core dùng lại nguyên vẹn từ bản Flet). Bảng dưới giữ nguyên
+làm tham chiếu estimate gốc:
 
 | Module | Loại | Độ phức tạp | Effort |
 |---|---|---|---|
@@ -95,11 +106,15 @@ Ghi log thao tác (phục vụ Restore ở Phase 2)
 ## 8. Rủi ro kỹ thuật chính
 
 1. **Active Session Detection** — rủi ro cao nhất. Sai sót ở đây có thể xoá nhầm session đang dùng dở. Cách tiếp cận:
-   - Đọc `~/.claude/sessions/*.json` (mỗi file có PID) → check `psutil.pid_exists()` để tránh PID bị OS tái sử dụng
-   - Với `.jsonl` trong `projects/` không có PID kèm theo → suy ra active gián tiếp qua `sessions/` index + `LastWriteTime` gần đây
-2. **"Xoá tất cả session của project"** là hành động phá huỷ diện rộng nhất — bắt buộc double-confirm, không có đường tắt bỏ qua active check.
-3. Chưa chốt hành vi khi active session lẫn trong nhóm bị chọn (soft-skip vs chặn toàn bộ) — xem mục 4.
-4. **Tkinter/ttkbootstrap là single-threaded UI** — mọi thao tác I/O nặng (scan, backup, xoá bulk) bắt buộc chạy trên thread riêng (`threading.Thread`) rồi cập nhật UI qua `root.after()`, không được block main loop.
+   - Đọc `~/.claude/sessions/*.json` (mỗi file có PID **và** `procStart`) → so
+     `psutil.Process(pid).create_time()` với `procStart`. **`psutil.pid_exists()`
+     một mình không đủ**: PID bị OS tái sử dụng thì vẫn `True` nhưng là process
+     khác — đây là lỗi thật tài liệu bản đầu mắc phải, đã sửa trong code.
+   - Với `.jsonl` trong `projects/` không có PID kèm theo (hoặc không đọc được
+     process — `AccessDenied`) → coi là `maybe_active`, không suy diễn là an toàn.
+2. **"Xoá tất cả session của project"** là hành động phá huỷ diện rộng nhất — bắt buộc nhập đúng tên project mới bật nút Xoá, không có đường tắt bỏ qua active check.
+3. ~~Chưa chốt hành vi khi active session lẫn trong nhóm bị chọn~~ **Đã chốt** (mục 4): `active` → soft-skip; `maybe_active` → xác nhận từng mục.
+4. **Tkinter/ttkbootstrap là single-threaded UI** — mọi thao tác I/O nặng (scan, backup, xoá bulk) chạy trên thread riêng, cập nhật UI chỉ qua một hàng đợi (`ui/dispatch.py`: `Dispatcher.post()` từ worker thread, `root.after()` rút ra và chạy trên main thread) — không được gọi thẳng vào widget Tk từ thread nền.
 
 ## 9. Đề xuất ngôn ngữ theo từng phần
 
@@ -107,20 +122,30 @@ Toàn bộ dự án dùng **duy nhất Python 3.11+** — không cần chia đa 
 
 | Phần | Ngôn ngữ / công cụ | Ghi chú |
 |---|---|---|
-| Setup + Packaging | Python (ttkbootstrap) + PyInstaller | `pyinstaller --onefile --windowed` đóng gói thành `.exe` |
-| Scan Engine | Python (`pathlib`, `os.scandir`) | Đủ nhanh cho quét file/thư mục; không cần Rust/C trừ khi dataset cực lớn |
+| Setup + Packaging | Python (ttkbootstrap) + PyInstaller | `pyinstaller claude-tidy.spec` (`--onedir --windowed`) đóng gói thành `dist/claude-tidy/claude-tidy.exe` — xem mục 2 vì sao không dùng `--onefile` |
+| Scan Engine | Python (`pathlib`, `os.scandir`) | Đủ nhanh cho quét file/thư mục; đo thực tế 51 project/628 session/503MB quét trong ~2.7s, không cần Rust/C |
 | Project/Session Grouping API | Python thuần (`dataclasses`) | Logic nghiệp vụ đơn giản |
 | Disk Usage Analysis | Python (`os.path.getsize`, `collections.Counter`) | |
-| GUI — Project & Session Explorer | Python (ttkbootstrap: `Treeview`, `Frame`, `Checkbutton`) | Treeview dùng cho panel trái (project) + panel phải (session list có checkbox) |
-| Trang cấu hình (Settings) | Python (ttkbootstrap) + JSON/TOML cho config file | Đọc/ghi bằng `json`/`tomllib` chuẩn |
-| Active Session Detection | Python (`psutil`) | Cross-platform process check; nếu cần chi tiết hơn có thể dùng `pywin32` (WinAPI) |
-| Backup + Safe Deletion | Python (`zipfile`, `shutil`, `send2trash`) | Thư viện chuẩn đủ dùng, không cần binding ngoài |
+| GUI — Project & Session Explorer | Python (ttkbootstrap: `Treeview`, `Frame`, `Checkbutton`) | Treeview dùng cho panel trái (project, worktree lồng bằng parent/child native) + panel phải (session list, checkbox tự vẽ bằng widget `CheckTreeview` dùng chung — `ttk.Treeview` không có checkbox sẵn) |
+| Trang cấu hình (Settings) | Python (ttkbootstrap) + JSON cho config file | Đọc/ghi bằng `json` chuẩn |
+| Active Session Detection | Python (`psutil`) | So `Process(pid).create_time()` với `procStart`, không chỉ `pid_exists()` |
+| Backup + Safe Deletion | Python (`zipfile`, `hashlib`) | Zip + manifest sha256 tự viết, không dùng `send2trash` (xem mục 2) |
 | Risk Level Indicator | Python thuần | Tái sử dụng kết quả từ Active Session Detection |
-| Progress Tracking | Python (`threading` + `queue`, cập nhật UI qua `root.after()`) | Tkinter không có async handler sẵn như Flet — bắt buộc chạy I/O nặng trên thread riêng để tránh đơ UI |
+| Progress Tracking | Python (`threading` + `queue.Queue`, cập nhật UI qua `root.after()`) | Tkinter không thread-safe: `on_progress` từ worker thread chỉ được gọi `Dispatcher.post(...)`; `root.after` rút hàng đợi và chạy trên main thread — không gọi thẳng vào widget từ thread nền |
 
 > **Lưu ý tối ưu sau này:** nếu Scan Engine chậm với dataset lớn, ưu tiên dùng `multiprocessing` trong Python trước; chỉ cân nhắc viết lại bằng Rust (qua PyO3) nếu thực sự cần thiết — không tối ưu sớm ở giai đoạn MVP.
 
 ## 10. Câu hỏi còn mở
 
-- Soft-skip hay chặn toàn bộ thao tác khi có active session trong nhóm xoá? (mục 4)
-- Vị trí lưu backup mặc định: `%LOCALAPPDATA%\ClaudeCleanerBackup\` tự xoá sau N ngày, hay để người dùng tự chọn thư mục + không auto-xoá?
+Không còn câu hỏi mở chặn MVP — cả hai mục dưới đây đã chốt ngày 2026-09-25
+(xem `plans/2026-09-25-session-cleaner-mvp-roadmap.md` §6):
+
+- ~~Soft-skip hay chặn toàn bộ thao tác khi có active session trong nhóm xoá?~~
+  **Đã chốt:** soft-skip cho `active`, xác nhận từng mục cho `maybe_active`.
+- ~~Vị trí lưu backup mặc định~~ **Đã chốt:** `%LOCALAPPDATA%\ClaudeTidy\backups\`,
+  tự xoá sau 14 ngày, Settings cho phép đổi thư mục và tắt auto-xoá.
+
+Câu hỏi mở còn lại thuộc riêng lần chuyển UI này (T22–T32) — xem mục 6 của
+[plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md),
+đã chốt: dùng PyInstaller `--onedir` (không `--onefile`), theme mặc định
+`cosmo`, thay hẳn Flet (không giữ song song).
