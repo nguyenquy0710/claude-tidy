@@ -190,6 +190,10 @@ Task ID đánh tiếp từ **T33** (T01–T32 đã dùng, nhiều task đã gắ
     (xem commit `feat(backup): add progress reporting for backup verification
     phase`). Test tự động Playwright cho T42 vẫn để ngỏ nếu sau này cần hồi
     quy tự động.
+  - **Retest thủ công 2026-09-27** (chủ dự án): chạy lại toàn bộ app sau khi
+    thêm icon vẽ tay (`icon.ico`/`icon.png`, `.bin/gen_icon.py`) và version
+    thật ở appbar (`get_version()` đọc `pyproject.toml` qua `tomllib`, thay
+    chuỗi tĩnh "v0.1 · MVP") — xác nhận OK, không phát sinh lỗi/regression.
 - [x] **T43 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp — **2026-09-26** (nội dung do một tiến
   trình khác đồng bộ trước đó — xem mục 1.3/6 ở trên; phiên này chỉ **xác minh lại**, không viết
   lại)

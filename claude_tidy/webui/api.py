@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import os
 import secrets
+import sys
 import threading
 import time
+import tomllib
 from pathlib import Path
 
 from claude_tidy.core import restore as restore_mod
@@ -62,6 +64,20 @@ class Api:
         self._pending_restores: dict[str, Path] = {}
 
     # ------------------------------------------------------------- read side
+
+    def get_version(self) -> str:
+        # pyproject.toml's `version` is the single source of truth (see
+        # .bin/bump_version.py) — read it directly rather than via installed
+        # package metadata, which goes stale after an editable install: `pip
+        # install -e` doesn't refresh dist-info just because pyproject.toml
+        # was edited afterward, and build_app_desktop.bat bumps the version
+        # then runs pyinstaller straight away, with no reinstall in between.
+        if getattr(sys, "frozen", False):
+            base = Path(sys._MEIPASS)
+        else:
+            base = Path(__file__).resolve().parents[2]
+        with (base / "pyproject.toml").open("rb") as f:
+            return tomllib.load(f)["project"]["version"]
 
     def list_projects(self) -> list[dict]:
         self._projects = group_projects(scan_projects(self._state.paths))
