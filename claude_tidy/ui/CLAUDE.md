@@ -4,9 +4,16 @@ Scope-specific guidance for this directory. Falls back to
 [claude_tidy/CLAUDE.md](../CLAUDE.md) and the [root CLAUDE.md](../../CLAUDE.md)
 for anything not covered here.
 
-Built with **ttkbootstrap** (Tkinter + Bootstrap-style theming), not Flet —
-see [plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md)
-for why and what changed.
+> ⚠️ **This directory is being phased out (2026-09-26).** The UI is migrating
+> to `claude_tidy/webui/` (pywebview + HTML/Bootstrap 5) — see
+> [plans/2026-09-25-pywebview-ui-migration-planning.md](../../plans/2026-09-25-pywebview-ui-migration-planning.md).
+> `ui/` still runs and is still the shipped UI until that migration reaches
+> parity, but **don't add features here** — put new UI work in `webui/`.
+> Task T40 of the migration plan deletes this directory outright once parity
+> is confirmed. The content below (built with ttkbootstrap, not Flet — see
+> [plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md),
+> now superseded) still describes how the current code works in the
+> meantime.
 
 ## Visual design source of truth
 
