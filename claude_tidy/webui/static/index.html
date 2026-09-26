@@ -310,6 +310,37 @@
     <span :class="settingsStatusOk ? 'text-success' : 'text-danger'" x-text="settingsStatus"></span>
     <button class="btn btn-sm btn-primary" @click="saveSettings()">Lưu</button>
   </div>
+
+  <hr class="my-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="fw-bold mb-0">Khôi phục từ backup</h6>
+    <button class="btn btn-sm btn-ct-neutral" @click="rescanBackups()">⟳ Quét lại</button>
+  </div>
+  <p class="text-muted small">Đọc lại đúng file/thư mục đã bị xoá từ một bản backup .zip. Cảnh báo nếu file đích đã tồn tại — không tự ghi đè khi chưa xác nhận.</p>
+  <template x-if="backups.length">
+    <table class="table table-sm ct-table">
+      <thead>
+        <tr><th>Thời gian</th><th>Label</th><th>Chế độ</th><th>Số mục</th><th>Dung lượng</th><th></th></tr>
+      </thead>
+      <tbody>
+        <template x-for="b in backups" :key="b.id">
+          <tr>
+            <td x-text="new Date(b.created_at*1000).toISOString().replace('T',' ').slice(0,19)"></td>
+            <td x-text="b.label"></td>
+            <td x-text="b.mode"></td>
+            <td x-text="b.target_count"></td>
+            <td x-text="b.size_human"></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" @click="startRestorePreview(b.id)">
+                Xem trước & khôi phục
+              </button>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </template>
+  <p class="text-muted small" x-show="!backups.length">Chưa có backup nào trong thư mục cấu hình ở trên.</p>
 </div>
 
 <!-- =============================================================== Status -->
@@ -487,6 +518,135 @@
               <div>
                 <h6 class="text-danger" x-text="`${result.failed_files.length} file không xoá được`"></h6>
                 <template x-for="f in result.failed_files.slice(0,50)">
+                  <div class="small" x-text="`• ${f.path}: ${f.error}`"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= Restore preview -->
+<div class="modal fade" id="restorePreviewModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="restorePreview">
+      <div class="modal-header">
+        <h5 class="modal-title">Xem trước khi khôi phục</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" x-show="restorePreview">
+        <p class="text-muted small">
+          <span x-text="restorePreview?.backup.label"></span> ·
+          <span x-text="restorePreview?.backup.mode"></span> · chưa có gì được ghi
+        </p>
+
+        <template x-if="restorePreview?.will_restore?.length">
+          <div class="mb-3">
+            <h6 class="text-success">Sẽ khôi phục</h6>
+            <ul class="list-unstyled mt-1">
+              <template x-for="i in restorePreview.will_restore" :key="i.id">
+                <li class="d-flex justify-content-between border-bottom py-1">
+                  <span x-text="i.label"></span>
+                  <span class="text-muted small" x-text="`${i.file_count} file · ${i.size_human}`"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <template x-if="restorePreview?.needs_confirmation?.length">
+          <div class="mb-3">
+            <h6 class="text-warning">Cần xác nhận ghi đè</h6>
+            <div class="small text-muted mb-1">File đích đã tồn tại — chỉ ghi đè mục bạn tick</div>
+            <template x-for="i in restorePreview.needs_confirmation" :key="i.id">
+              <div class="form-check d-flex justify-content-between border-bottom py-1">
+                <span>
+                  <input class="form-check-input me-2" type="checkbox"
+                         :checked="!!restoreChecked[i.id]"
+                         @change="restoreChecked[i.id] = !restoreChecked[i.id]">
+                  <label x-text="i.label"></label>
+                </span>
+                <span class="text-muted small" x-text="`${i.file_count} file · ${i.size_human}`"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="restorePreview?.refused?.length">
+          <div class="mb-3">
+            <h6 class="text-danger">Sẽ bỏ qua</h6>
+            <template x-for="row in restorePreview.refused" :key="row.item.id">
+              <div class="d-flex justify-content-between border-bottom py-1">
+                <span x-text="row.item.label"></span>
+                <span class="text-muted small" x-text="row.reason"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" data-bs-dismiss="modal">Huỷ</button>
+        <button class="btn btn-primary" :disabled="!restoreCanConfirm" @click="confirmRestore()">
+          Khôi phục
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================== Restore progress -->
+<div class="modal fade" id="restoreProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Đang khôi phục</h5>
+      </div>
+      <div class="modal-body">
+        <p x-text="restoreProgress ? `Đang khôi phục ${restoreProgress.done}/${restoreProgress.total} ${restoreProgress.current||''}` : 'Đang chuẩn bị…'"></p>
+        <div class="progress">
+          <div class="progress-bar" role="progressbar"
+               :style="`width: ${restoreProgress && restoreProgress.total ? (restoreProgress.done/restoreProgress.total*100) : 0}%`"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" @click="cancelRestore()">Huỷ (dừng sau mục hiện tại)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= Restore result -->
+<div class="modal fade" id="restoreResultModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="restoreResult">
+      <div class="modal-header">
+        <h5 class="modal-title">Kết quả khôi phục</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" x-show="restoreResult?.error" x-text="restoreResult?.error"></div>
+        <template x-if="restoreResult && !restoreResult.error">
+          <div>
+            <p x-text="`Đã khôi phục ${restoreResult.restored.length} mục.`"></p>
+            <p class="text-warning" x-show="restoreResult.cancelled">Đã dừng theo yêu cầu — các mục còn lại chưa được khôi phục.</p>
+            <template x-if="restoreResult.skipped?.length">
+              <div class="mb-2">
+                <h6 class="text-danger">Đã bỏ qua</h6>
+                <template x-for="row in restoreResult.skipped" :key="row.item.id">
+                  <div class="small" x-text="`• ${row.item.label} — ${row.reason}`"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="restoreResult.failed_files?.length">
+              <div>
+                <h6 class="text-danger" x-text="`${restoreResult.failed_files.length} mục lỗi`"></h6>
+                <template x-for="f in restoreResult.failed_files.slice(0,50)">
                   <div class="small" x-text="`• ${f.path}: ${f.error}`"></div>
                 </template>
               </div>

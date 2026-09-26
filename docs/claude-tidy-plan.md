@@ -49,6 +49,10 @@ Bản viết lại bằng **Python**, build thành desktop app native cho Window
   - Số ngày giữ backup trước khi tự xoá (mặc định 14 ngày), công tắc bật/tắt auto-xoá
   - Ngưỡng thời gian coi là "có thể đang active" (mặc định 5 phút từ lần ghi cuối)
   - Ngưỡng "mới dùng" cho badge cảnh báo (mặc định 24h)
+  - Khôi phục từ backup: bảng liệt kê các bản backup .zip trong thư mục cấu
+    hình ở trên; xem trước từng bản (đọc `manifest.json` trong zip) trước khi
+    ghi bất cứ gì, cảnh báo và yêu cầu tick xác nhận riêng cho mục nào có file
+    đích đã tồn tại — không tự động ghi đè
 
 ## 4. Pipeline xoá (áp dụng cho cả 3 chế độ xoá)
 

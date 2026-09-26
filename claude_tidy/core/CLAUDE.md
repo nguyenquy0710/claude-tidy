@@ -21,7 +21,8 @@ at the point of deletion, not just when a plan is built.
 | `risk.py` | Pure function mapping `(Activity, last_write, now)` → `RiskLevel` for UI badges only; never used to gate deletion (activity is, in `deleter.py`). |
 | `backup.py` | `create_backup()` — zip with per-file sha256 manifest, verified before the caller may delete; `prune_backups()` for retention. |
 | `deleter.py` | `preview()` / `execute()` — the one deletion pipeline. |
-| `oplog.py` | Append-only JSON-lines operation log, input for the Phase 2 Restore feature. |
+| `oplog.py` | Append-only JSON-lines operation log — an audit trail both `deleter.execute()` and `restore.restore()` append one record to per run; not consulted to find backups (see `restore.py` below, which reads each zip's own manifest instead). |
+| `restore.py` | `list_backups()` / `preview_restore()` / `restore()` — restore-from-backup (T17), mirroring the delete pipeline's preview/execute shape. See "Restore" section below. |
 | `settings.py` | `Settings` dataclass, `load_settings()`/`save_settings()` — tolerant of a corrupt/partial settings file (falls back to defaults per-field, never crashes). |
 
 ## The one deletion pipeline
@@ -93,6 +94,37 @@ gone, the safe default is "maybe still running," not "safe to delete."
   `on_verify_progress` — `Progress.phase` is `"backup"` → `"verify"` →
   `"delete"`, not just the first and third; a UI reading `phase` needs to
   handle all three.
+
+## Restore (`restore.py`, T17)
+
+- `list_backups(backup_dir)` scans the backup dir directly for files matching
+  `backup.BACKUP_NAME_RE` and reads each zip's own `manifest.json` — there is
+  no separate index to keep in sync; the zip files on disk are the source of
+  truth.
+- `preview_restore()`/`restore()` re-validate every target's *original*
+  backup `roots` (recorded in the manifest at backup time) against
+  `scanner.check_deletable()` before touching anything. A backup zip is data
+  this app wrote itself, but a hand-edited or foreign zip dropped into the
+  backup dir could still claim any destination path in its manifest — this
+  check is what stops a tampered zip from being used to write files outside
+  the managed session/index/cache locations, the same allowlist the delete
+  pipeline leans on.
+- A target is only written back if every one of its files' destinations is
+  either missing or the caller passed the target's id in `confirmed` — never
+  a partial overwrite of some files in a bundle but not others.
+- Each file is written to a `<name>.restoring` sibling and only `replace()`d
+  onto the real path after its sha256 matches the manifest — same
+  crash-safety shape as `backup.create_backup()`'s `.zip.partial`. A checksum
+  mismatch removes the temp file and fails only that target, not the whole
+  restore.
+- `restore()` appends one `oplog` record per run (mode `"restore"`), same as
+  `deleter.execute()` — this is a write operation on user data and worth the
+  same audit trail.
+- The one `.unlink()` in this module only ever removes a `.restoring` temp
+  file the current call just wrote — never anything from a user's real
+  session data — so it's explicitly exempted in
+  `test_deleter_is_the_only_module_that_removes_files` rather than counted as
+  a second deletion path.
 
 ## Adding a test for this package
 

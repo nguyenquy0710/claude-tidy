@@ -246,12 +246,15 @@ def test_prune_only_touches_own_old_backups(tmp_path):
 
 def test_deleter_is_the_only_module_that_removes_files():
     # Guard against a second deletion path creeping into core/ or ui/.
+    # restore.py is exempt: its one `.unlink()` only ever removes a `.restoring`
+    # temp file it just wrote itself (checksum-mismatch rollback), never
+    # anything from a user's real session data — not a second deletion path.
     import pathlib
 
     root = pathlib.Path(deleter.__file__).parent.parent
     offenders = []
     for py in root.rglob("*.py"):
-        if py.name in ("deleter.py", "backup.py"):
+        if py.name in ("deleter.py", "backup.py", "restore.py"):
             continue
         text = py.read_text(encoding="utf-8")
         for needle in ("os.unlink", "os.remove", "rmtree", ".unlink(", "os.rmdir", ".rmdir("):

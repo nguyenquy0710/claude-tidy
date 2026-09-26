@@ -14,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 
+from claude_tidy.core import restore as restore_mod
 from claude_tidy.core.activity import claude_desktop_pid
 from claude_tidy.core.deleter import execute, preview
 from claude_tidy.core.grouping import (
@@ -42,6 +43,8 @@ class Api:
         self._jobs = JobRunner(notify)
         self._delete_lock = threading.Lock()
         self._deleting = False
+        self._restore_lock = threading.Lock()
+        self._restoring = False
 
         # Populated by list_projects()/scan_cache()/list_orphan_index(); every
         # id the frontend ever sends is resolved against *this*, never a raw
@@ -53,6 +56,10 @@ class Api:
         # token -> (DeletePlan, required_typed_name | None). One-time use:
         # popped in execute_delete, so a token can't be replayed.
         self._pending: dict[str, tuple[DeletePlan, str | None]] = {}
+
+        # token -> resolved backup zip path. Same one-time-use shape as
+        # `_pending`, popped in execute_restore.
+        self._pending_restores: dict[str, Path] = {}
 
     # ------------------------------------------------------------- read side
 
@@ -234,6 +241,67 @@ class Api:
 
     def cancel_job(self, job_id: str) -> bool:
         return self._jobs.cancel(job_id)
+
+    # ------------------------------------------------------------- restore
+
+    def list_backups(self) -> list[dict]:
+        backups = restore_mod.list_backups(self._state.settings.backup_dir)
+        return [dto.backup_file_to_dict(b) for b in backups]
+
+    def preview_restore(self, backup_id: str) -> dict:
+        zip_path = self._resolve_backup(backup_id)
+        if zip_path is None:
+            return {"error": "Không tìm thấy file backup."}
+        try:
+            pv = restore_mod.preview_restore(zip_path, self._state.paths)
+        except restore_mod.RestoreError as exc:
+            return {"error": str(exc)}
+        token = secrets.token_urlsafe(16)
+        self._pending_restores[token] = zip_path
+        result = dto.restore_preview_to_dict(pv)
+        result["token"] = token
+        return result
+
+    def execute_restore(self, token: str, confirmed_ids: list[str]) -> dict:
+        # Same shape as execute_delete: the lock only guards this
+        # check-and-commit step, `_restoring` covers the whole background job.
+        with self._restore_lock:
+            if self._restoring:
+                return {"error": "Đang có thao tác khôi phục khác chạy — thử lại sau."}
+            zip_path = self._pending_restores.get(token)
+            if zip_path is None:
+                return {"error": "Token không hợp lệ hoặc đã dùng."}
+            del self._pending_restores[token]
+            self._restoring = True
+
+        def work(on_progress, cancel):
+            def bridge(p) -> None:
+                on_progress({"phase": p.phase, "done": p.done, "total": p.total,
+                            "current": p.current})
+
+            try:
+                result = restore_mod.restore(zip_path, self._state.paths,
+                                             confirmed=set(confirmed_ids), on_progress=bridge,
+                                             cancel=cancel)
+                return dto.restore_result_to_dict("", result)
+            finally:
+                with self._restore_lock:
+                    self._restoring = False
+
+        job_id = self._jobs.start(work)
+        return {"job_id": job_id}
+
+    def _resolve_backup(self, backup_id: str) -> Path | None:
+        # backup_id is a bare filename from JS, never trusted as a path —
+        # resolve it under the configured backup dir and reject anything
+        # that escapes it (e.g. "..\\..\\windows\\x.zip").
+        backup_dir = self._state.settings.backup_dir.resolve()
+        candidate = (backup_dir / backup_id).resolve()
+        try:
+            candidate.relative_to(backup_dir)
+        except ValueError:
+            return None
+        return candidate if candidate.is_file() else None
 
     # ------------------------------------------------------------- internal
 

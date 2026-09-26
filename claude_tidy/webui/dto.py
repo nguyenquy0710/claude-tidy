@@ -9,6 +9,7 @@ claude_tidy/webui/CLAUDE.md "Trust boundary".
 from __future__ import annotations
 
 from claude_tidy.core.models import (
+    BackupFile,
     CacheGroup,
     DeletePlan,
     DeleteResult,
@@ -17,6 +18,9 @@ from claude_tidy.core.models import (
     Preview,
     Progress,
     Project,
+    RestoreItem,
+    RestorePreview,
+    RestoreResult,
     SessionBundle,
 )
 from claude_tidy.core.usage import human_size
@@ -97,6 +101,44 @@ def preview_to_dict(pv: Preview, plan: DeletePlan) -> dict:
 def progress_to_dict(job_id: str, p: Progress) -> dict:
     return {"job_id": job_id, "phase": p.phase, "done": p.done, "total": p.total,
            "current": p.current}
+
+
+def backup_file_to_dict(b: BackupFile) -> dict:
+    return {
+        "id": b.zip_path.name,
+        "created_at": b.created_at,
+        "mode": b.mode,
+        "label": b.label,
+        "target_count": b.target_count,
+        "size_bytes": b.size_bytes,
+        "size_human": human_size(b.size_bytes),
+    }
+
+
+def restore_item_to_dict(i: RestoreItem) -> dict:
+    return {"id": i.id, "label": i.label, "file_count": i.file_count,
+           "size_bytes": i.size_bytes, "size_human": human_size(i.size_bytes)}
+
+
+def restore_preview_to_dict(pv: RestorePreview) -> dict:
+    return {
+        "backup": backup_file_to_dict(pv.backup),
+        "will_restore": [restore_item_to_dict(i) for i in pv.will_restore],
+        "needs_confirmation": [restore_item_to_dict(i) for i in pv.needs_confirmation],
+        "refused": [{"item": restore_item_to_dict(i), "reason": reason}
+                   for i, reason in pv.refused],
+    }
+
+
+def restore_result_to_dict(job_id: str, r: RestoreResult) -> dict:
+    return {
+        "job_id": job_id,
+        "restored": [restore_item_to_dict(i) for i in r.restored],
+        "skipped": [{"item": restore_item_to_dict(i), "reason": reason}
+                   for i, reason in r.skipped],
+        "failed_files": [{"path": str(p), "error": e} for p, e in r.failed_files],
+        "cancelled": r.cancelled,
+    }
 
 
 def result_to_dict(job_id: str, r: DeleteResult) -> dict:

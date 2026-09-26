@@ -78,6 +78,7 @@ function app() {
     settings: {},
     settingsStatus: "",
     settingsStatusOk: true,
+    backups: [],
 
     // --- Delete flow (shared) ---
     preview: null, // {token, will_delete, needs_confirmation, skipped, typed_name_required}
@@ -88,15 +89,27 @@ function app() {
     activeJobId: null,
     deleteBusy: false,
 
+    // --- Restore flow (Settings tab) ---
+    restorePreview: null, // {token, backup, will_restore, needs_confirmation, refused}
+    restoreChecked: {},
+    restoreProgress: null,
+    restoreResult: null,
+    restoreActiveJobId: null,
+    restoreBusy: false,
+
     async init() {
       window.addEventListener("ct:job_progress", (e) => {
         if (e.detail.job_id === this.activeJobId) this.progress = e.detail;
+        else if (e.detail.job_id === this.restoreActiveJobId) this.restoreProgress = e.detail;
       });
       window.addEventListener("ct:job_done", (e) => {
         if (e.detail.job_id === this.activeJobId) this.onDeleteDone(e.detail.result);
+        else if (e.detail.job_id === this.restoreActiveJobId) this.onRestoreDone(e.detail.result);
       });
       window.addEventListener("ct:job_error", (e) => {
         if (e.detail.job_id === this.activeJobId) this.onDeleteDone({ error: e.detail.error });
+        else if (e.detail.job_id === this.restoreActiveJobId)
+          this.onRestoreDone({ error: e.detail.error });
       });
       await this.waitForPywebviewReady();
       await this.selectTab("sessions");
@@ -120,7 +133,10 @@ function app() {
       if (tab === "sessions") await this.rescanSessions();
       else if (tab === "cache") await this.rescanCache();
       else if (tab === "index") await this.rescanIndex();
-      else if (tab === "settings") await this.loadSettings();
+      else if (tab === "settings") {
+        await this.loadSettings();
+        await this.rescanBackups();
+      }
     },
 
     humanSize,
@@ -314,6 +330,62 @@ function app() {
     async browseBackupDir() {
       const chosen = await api("pick_folder", this.settings.backup_dir);
       if (chosen) this.settings.backup_dir = chosen;
+    },
+
+    // ------------------------------------------------------- Restore flow
+
+    async rescanBackups() {
+      this.backups = await api("list_backups");
+    },
+
+    async startRestorePreview(backupId) {
+      this.restorePreview = await api("preview_restore", backupId);
+      if (this.restorePreview.error) {
+        this.restoreResult = { error: this.restorePreview.error };
+        this.restorePreview = null;
+        new bootstrap.Modal("#restoreResultModal").show();
+        return;
+      }
+      this.restoreChecked = {};
+      new bootstrap.Modal("#restorePreviewModal").show();
+    },
+
+    get restoreConfirmedIds() {
+      return Object.keys(this.restoreChecked).filter((k) => this.restoreChecked[k]);
+    },
+
+    get restoreCanConfirm() {
+      if (!this.restorePreview) return false;
+      return this.restorePreview.will_restore.length + this.restoreConfirmedIds.length > 0;
+    },
+
+    async confirmRestore() {
+      const token = this.restorePreview.token;
+      const confirmedIds = this.restoreConfirmedIds;
+      bootstrap.Modal.getInstance(document.getElementById("restorePreviewModal"))?.hide();
+      this.restoreProgress = { phase: "restore", done: 0, total: 1, current: "" };
+      this.restoreBusy = true;
+      new bootstrap.Modal("#restoreProgressModal", { backdrop: "static", keyboard: false }).show();
+      const resp = await api("execute_restore", token, confirmedIds);
+      if (resp.error) {
+        this.onRestoreDone({ error: resp.error });
+        return;
+      }
+      this.restoreActiveJobId = resp.job_id;
+    },
+
+    cancelRestore() {
+      if (this.restoreActiveJobId) api("cancel_job", this.restoreActiveJobId);
+    },
+
+    onRestoreDone(result) {
+      this.restoreBusy = false;
+      this.restoreActiveJobId = null;
+      bootstrap.Modal.getInstance(document.getElementById("restoreProgressModal"))?.hide();
+      this.restoreResult = result;
+      this.restorePreview = null;
+      new bootstrap.Modal("#restoreResultModal").show();
+      this.rescanBackups();
     },
 
     // ------------------------------------------------------- Delete flow

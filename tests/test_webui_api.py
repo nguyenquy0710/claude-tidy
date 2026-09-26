@@ -228,3 +228,90 @@ def test_invalid_mode_and_missing_project_are_rejected(app):
     resp = app.preview_delete({"mode": "single", "project_id": "does-not-exist",
                                "session_ids": ["x"]})
     assert "error" in resp
+
+
+def _delete_alpha_old_session(app):
+    app.list_projects()
+    alpha = next(p for p in app._projects if p.worktrees)
+    pv = app.preview_delete({"mode": "single", "project_id": alpha.slug,
+                             "session_ids": [fc.S_OLD]})
+    return app.execute_delete(pv["token"], confirmed_ids=[])
+
+
+def test_list_backups_via_api(app, fake, events):
+    resp = _delete_alpha_old_session(app)
+    _wait_for_job(events, resp["job_id"])
+
+    backups = app.list_backups()
+    assert len(backups) == 1
+    assert backups[0]["mode"] == "single"
+
+
+def test_preview_and_execute_restore_happy_path(app, fake, events):
+    jsonl = fake.paths.claude_home / "projects" / "D--work-alpha" / f"{fc.S_OLD}.jsonl"
+    resp = _delete_alpha_old_session(app)
+    _wait_for_job(events, resp["job_id"])
+    assert not jsonl.exists()
+
+    backup_id = app.list_backups()[0]["id"]
+    pv = app.preview_restore(backup_id)
+    assert [i["id"] for i in pv["will_restore"]] == [fc.S_OLD]
+    assert "token" in pv
+
+    restore_resp = app.execute_restore(pv["token"], confirmed_ids=[])
+    assert "job_id" in restore_resp
+    _name, payload = _wait_for_job(events, restore_resp["job_id"])
+    assert [i["id"] for i in payload["result"]["restored"]] == [fc.S_OLD]
+    assert jsonl.exists()
+
+
+def test_preview_restore_unknown_backup_id_returns_error(app):
+    assert "error" in app.preview_restore("no-such-backup.zip")
+
+
+def test_preview_restore_rejects_path_traversal(app, fake, app_state):
+    # A real file that exists just outside the configured backup dir — without
+    # the relative_to() guard in Api._resolve_backup, "../decoy.zip" would
+    # resolve straight to it.
+    decoy = app_state.settings.backup_dir.parent / "decoy.zip"
+    decoy.parent.mkdir(parents=True, exist_ok=True)
+    decoy.write_bytes(b"not actually a backup")
+
+    assert "error" in app.preview_restore("..\\decoy.zip")
+    assert "error" in app.preview_restore("../decoy.zip")
+
+
+def test_execute_restore_rejects_unknown_token(app):
+    resp = app.execute_restore("no-such-token", confirmed_ids=[])
+    assert "error" in resp
+    assert "Token" in resp["error"]
+
+
+def test_concurrent_restore_is_rejected(app, fake, events, monkeypatch):
+    resp = _delete_alpha_old_session(app)
+    _wait_for_job(events, resp["job_id"])
+    backup_id = app.list_backups()[0]["id"]
+
+    real_restore = api_module.restore_mod.restore
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_restore(*args, **kwargs):
+        started.set()
+        release.wait(timeout=5)
+        return real_restore(*args, **kwargs)
+
+    monkeypatch.setattr(api_module.restore_mod, "restore", slow_restore)
+
+    pv1 = app.preview_restore(backup_id)
+    resp1 = app.execute_restore(pv1["token"], confirmed_ids=[])
+    assert "job_id" in resp1
+    assert started.wait(timeout=5)
+
+    pv2 = app.preview_restore(backup_id)
+    resp2 = app.execute_restore(pv2["token"], confirmed_ids=[])
+    assert "error" in resp2
+    assert "khác" in resp2["error"]
+
+    release.set()
+    _wait_for_job(events, resp1["job_id"])

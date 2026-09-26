@@ -16,7 +16,7 @@ package removed in task T40 — see
 |---|---|
 | `app.py` | `run()` — checks the WebView2 Runtime registry key before doing anything else (missing → `MessageBoxW`, not a Tk dialog — this package imports no `tkinter`), then `webview.create_window(..., js_api=Api(...))` + `webview.start(gui="edgechromium")`. Always force `gui="edgechromium"`; letting pywebview fall back to MSHTML/IE breaks Bootstrap 5. |
 | `state.py` | `AppState` — loads `ClaudePaths`/`Settings` once at startup; `new_detector()` builds a fresh `ActivityDetector` per call (state can go stale across a scan, don't cache one). `probe` is injectable so tests can pass a `FakeProbe` instead of hitting real `psutil`. |
-| `api.py` | `Api` — the entire `js_api` surface. Every method returns a JSON-safe dict via `dto.py`. Includes read/refresh helpers alongside the delete pair: `rescan_project(project_id)` re-scans one project directory only (`core.scanner.scan_project`, the same function `scan_projects` calls per-entry) instead of the whole `~/.claude/projects` tree, for a cheap right-click "refresh"; `open_project_folder(project_id)` resolves the id server-side same as everything else and calls `os.startfile(cwd)` — read-only, so it doesn't go through `preview_delete`/`execute_delete`, but still never trusts a path coming from JS. |
+| `api.py` | `Api` — the entire `js_api` surface. Every method returns a JSON-safe dict via `dto.py`. Includes read/refresh helpers alongside the delete pair: `rescan_project(project_id)` re-scans one project directory only (`core.scanner.scan_project`, the same function `scan_projects` calls per-entry) instead of the whole `~/.claude/projects` tree, for a cheap right-click "refresh"; `open_project_folder(project_id)` resolves the id server-side same as everything else and calls `os.startfile(cwd)` — read-only, so it doesn't go through `preview_delete`/`execute_delete`, but still never trusts a path coming from JS. `list_backups()`/`preview_restore(backup_id)`/`execute_restore(token, confirmed_ids)` are the restore-from-backup pair (T17) — see "Trust boundary" below for the token shape and `_resolve_backup`. |
 | `dto.py` | `core/models.py` dataclasses → JSON-safe dicts (paths become display strings, enums become `.value`). |
 | `jobs.py` | `JobRunner` — runs scan/delete work on a background thread, pushes `job_progress`/`job_done`/`job_error` events through a plain `notify(name, payload)` callable (decoupled from `evaluate_js` so it's testable without a window). |
 | `static/index.html` + `static/app.js` + `static/app.css` | Alpine.js `app()` component bound to the 4 tabs (Sessions/Cache/Index/Settings) and the shared delete-flow modals. `static/vendor/` has Bootstrap 5 + Alpine.js **downloaded locally**, never CDN — the app must run offline and package with PyInstaller. |
@@ -54,6 +54,21 @@ rules 1–9 apply in full):
   `Api._pending` *after* the `typed_name` check passes — a typo on "delete
   all" must not permanently burn the one-time token before the user can
   retry.
+- **Restore mirrors the same token shape** (`core/restore.py`, T17):
+  `preview_restore(backup_id)` resolves `backup_id` (a bare filename, never a
+  path) through `Api._resolve_backup` — joined onto the configured backup dir
+  and re-checked with `Path.relative_to()` so a crafted `"..\\..\\x.zip"`
+  can't escape it — then runs `core.restore.preview_restore`, which
+  re-validates every target's original backup `roots` against
+  `scanner.check_deletable()` before offering it, so a hand-edited or foreign
+  zip in the backup dir can't be used to plant files outside the managed
+  session/index/cache locations. `execute_restore(token, confirmed_ids)`
+  re-runs that same check server-side and only writes files whose
+  destination doesn't already exist, unless the target's id is in
+  `confirmed_ids`. `Api._restoring`/`Api._restore_lock` guard one restore at a
+  time, same pattern as `_deleting`/`_delete_lock` — kept as a separate flag
+  because restore and delete are independent operations, not cross-locked
+  against each other.
 
 ## `evaluate_js` and Promises
 
@@ -82,6 +97,10 @@ or written directly in JS. Keep both sides in sync when a field is added —
 | `target_to_dict` | one row inside `will_delete`/`needs_confirmation`/`skipped` |
 | `preview_to_dict` | the dry-run preview modal — `size_bytes` on the `Preview` model is `will_delete` only, *not* `needs_confirmation`; `app.js`'s `previewConfirmedSizeBytes` getter adds the confirmed `needs_confirmation` targets' sizes back in for the confirm-button total |
 | `result_to_dict` | the result modal after `execute_delete` finishes |
+| `backup_file_to_dict` | `list_backups()`, the "Khôi phục từ backup" table in Settings |
+| `restore_item_to_dict` | one row inside `will_restore`/`needs_confirmation`/`refused` |
+| `restore_preview_to_dict` | the restore dry-run preview modal |
+| `restore_result_to_dict` | the restore result modal after `execute_restore` finishes |
 
 ## Frontend conventions
 
