@@ -94,6 +94,12 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
   - Khởi tạo `pyproject.toml` (Python 3.11+, flet, psutil, send2trash, pytest), ruff, cấu trúc package
   - Cài Flutter SDK + VS C++ workload, chạy thử `flet build windows` với app "hello" để phát hiện sớm lỗi toolchain
   - Tăng 1d vì build Flet Windows lần đầu thường vướng môi trường
+  - ⚠️ **Phần dở (`flet build windows`) đã lỗi thời — Jira QUYIT-742 chuyển
+    sang Rejected ngày 2026-09-26**, cùng tiền lệ với T22–T32 khi ttkbootstrap
+    bị thay bởi pywebview. Toolchain Flet không còn dùng; đóng gói `.exe` giờ
+    qua PyInstaller, xem T33/T41 ở
+    [2026-09-25-pywebview-ui-migration-planning.md](2026-09-25-pywebview-ui-migration-planning.md).
+    Nội dung gốc phía trên giữ nguyên làm nhật ký, không viết lại theo hồi tưởng.
 - [x] **T02 — Path resolver & Settings model** (**0.5d**, tách từ Settings) · Backend · Thấp
   - Resolve các root dir, cho phép override qua biến môi trường/tham số để test
 - [x] **T03 — Test fixtures `~/.claude` giả lập** (**1.5d**, mới) · QA · Trung bình
@@ -154,6 +160,12 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 - [ ] **T16 — Packaging & smoke test** (gộp trong buffer QA) · DevOps
   - `flet build windows`, chạy `.exe` trên máy/VM sạch, kiểm tra với dữ liệu `~/.claude` thật (đã backup trước)
+  - ⚠️ **Đã lỗi thời — Jira QUYIT-757 chuyển sang Rejected ngày 2026-09-26.**
+    Nội dung (build + chạy thử `.exe`) được thay bằng T41 (đóng gói PyInstaller,
+    đã Done) + T42 (smoke test, đã xác nhận hoàn thành qua test thủ công ngày
+    2026-09-26) ở
+    [2026-09-25-pywebview-ui-migration-planning.md](2026-09-25-pywebview-ui-migration-planning.md).
+    Giữ nguyên nội dung gốc phía trên làm nhật ký.
 
 ### Bổ sung sau khi chốt câu hỏi (2026-09-25)
 

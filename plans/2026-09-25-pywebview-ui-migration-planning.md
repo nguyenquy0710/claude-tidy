@@ -1,7 +1,7 @@
 ---
 type: refactor
 complexity: high
-status: planning
+status: done
 related_issues: [QUYIT-741, QUYIT-774, QUYIT-775, QUYIT-776, QUYIT-777, QUYIT-778, QUYIT-779, QUYIT-780, QUYIT-781, QUYIT-782, QUYIT-783, QUYIT-784]
 related_prs: []
 estimated_hours: ~160 (≈ 20 person-days, gồm buffer)
@@ -177,10 +177,19 @@ Task ID đánh tiếp từ **T33** (T01–T32 đã dùng, nhiều task đã gắ
     tác gì bên trong cửa sổ thật (tránh đụng dữ liệu `~/.claude` thật của máy dev).
   - Chưa làm: kiểm tra nhánh "thiếu WebView2" (máy dev luôn có sẵn runtime — cần máy/VM không có để
     test nhánh này, kế thừa sang phần "smoke test máy sạch" của T42).
-- [ ] **T42 — Test E2E frontend + smoke** (**1.5d**) · QA · Trung bình · phụ thuộc T37–T39
+- [x] **T42 — Test E2E frontend + smoke** (**1.5d**) · QA · Trung bình · phụ thuộc T37–T39 — **2026-09-26**
   - Playwright chạy `index.html` với `window.pywebview.api` giả (trả DTO mẫu). Kiểm tra: 3 chế độ xoá, `MAYBE_ACTIVE` phải tick mới xoá, nhập tên khi xoá tất cả, huỷ, kết quả
   - `pytest` + `ruff` sạch; test core cũ pass nguyên vẹn
   - Kế thừa phần còn mở của **T31**: smoke test trên máy/VM sạch (kèm kiểm tra antivirus báo nhầm)
+  - **Xác nhận hoàn thành qua test thủ công bởi chủ dự án (2026-09-26), thay
+    cho Playwright tự động** ở trên (chưa viết). Trong lúc test thủ công phát
+    hiện 1 bug thật khớp đúng acceptance criteria "UI không treo khi xoá
+    project ≥ 1.000 session": `backup._verify()` rehash toàn bộ file sau khi
+    ghi zip mà không báo tiến độ, khiến UI đứng yên ở "Đang backup N/N" một
+    khoảng dài trông như treo — đã sửa bằng cách thêm phase tiến độ `verify`
+    (xem commit `feat(backup): add progress reporting for backup verification
+    phase`). Test tự động Playwright cho T42 vẫn để ngỏ nếu sau này cần hồi
+    quy tự động.
 - [x] **T43 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp — **2026-09-26** (nội dung do một tiến
   trình khác đồng bộ trước đó — xem mục 1.3/6 ở trên; phiên này chỉ **xác minh lại**, không viết
   lại)
