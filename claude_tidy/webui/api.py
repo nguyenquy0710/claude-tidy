@@ -8,6 +8,7 @@ pywebview marshals return values to JS through its own JSON encoding.
 
 from __future__ import annotations
 
+import os
 import secrets
 import threading
 import time
@@ -23,7 +24,7 @@ from claude_tidy.core.grouping import (
 )
 from claude_tidy.core.models import CacheGroup, DeletePlan, IndexEntry, PlanMode, Project
 from claude_tidy.core.risk import classify
-from claude_tidy.core.scanner import scan_cache, scan_projects
+from claude_tidy.core.scanner import scan_cache, scan_project, scan_projects
 from claude_tidy.core.settings import save_settings
 from claude_tidy.webui import dto
 from claude_tidy.webui.jobs import JobRunner
@@ -80,6 +81,29 @@ class Api:
             sessions.append(dto.session_to_dict(
                 s, risk.value, status.value, active_pid_by_session.get(s.session_id)))
         return {"project": dto.project_to_dict(project), "sessions": sessions}
+
+    def rescan_project(self, project_id: str) -> dict:
+        """Re-scan just this project's own directory (new/removed session
+        files), without re-walking the whole ~/.claude/projects tree — a
+        cheaper alternative to list_projects() for a right-click "refresh"."""
+        try:
+            project = self._find_project(project_id)
+        except InvalidRequest as exc:
+            return {"error": str(exc)}
+        fresh = scan_project(project.dir, self._state.paths)
+        project.sessions = fresh.sessions
+        project.cwd = fresh.cwd
+        return self.list_sessions(project_id)
+
+    def open_project_folder(self, project_id: str) -> dict:
+        try:
+            project = self._find_project(project_id)
+        except InvalidRequest as exc:
+            return {"error": str(exc)}
+        if not project.cwd or not Path(project.cwd).is_dir():
+            return {"error": "Không tìm thấy thư mục project trên đĩa (worktree có thể đã mất)."}
+        os.startfile(project.cwd)
+        return {"ok": True}
 
     def scan_cache(self) -> dict:
         self._cache_groups = scan_cache(self._state.paths)

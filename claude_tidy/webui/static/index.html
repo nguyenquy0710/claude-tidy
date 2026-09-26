@@ -53,7 +53,8 @@
         <div>
           <div class="ct-project-row d-flex justify-content-between"
                :class="selectedProjectId === p.id && 'active'"
-               @click="selectProject(p.id)">
+               @click="selectProject(p.id)"
+               @contextmenu.prevent="openProjectMenu($event, p)">
             <span class="text-truncate" x-text="p.display_name"></span>
             <span class="text-nowrap small text-muted ms-2"
                   x-text="`${p.session_count} · ${humanSize(p.size_bytes)}`"></span>
@@ -61,7 +62,8 @@
           <template x-for="w in p.worktrees" :key="w.id">
             <div class="ct-project-row d-flex justify-content-between ps-3"
                  :class="[selectedProjectId === w.id && 'active', !w.worktree_exists && 'ct-worktree-missing']"
-                 @click="selectProject(w.id)">
+                 @click="selectProject(w.id)"
+                 @contextmenu.prevent="openProjectMenu($event, w)">
               <span class="text-truncate" x-text="w.worktree_name"></span>
               <span class="text-nowrap small text-muted ms-2"
                     x-text="`${w.session_count} · ${humanSize(w.size_bytes)}${!w.worktree_exists ? ' · mất' : ''}`"></span>
@@ -159,6 +161,20 @@
     </template>
   </div>
 </div>
+
+<!-- Project right-click menu (Sessions tab sidebar) -->
+<ul class="dropdown-menu show" x-show="projectMenu" x-on:click.outside="projectMenu = null"
+    :style="`position: fixed; left: ${projectMenu?.x}px; top: ${projectMenu?.y}px; z-index: 3000;`">
+  <li><h6 class="dropdown-header text-truncate" style="max-width: 260px"
+          x-text="projectMenu?.project.display_name"></h6></li>
+  <li><button class="dropdown-item" @click="openProjectFolder()">📂 Open Explorer</button></li>
+  <li><button class="dropdown-item" @click="copyProjectPath()">📋 Sao chép</button></li>
+  <li><button class="dropdown-item" @click="rescanProjectMenu()">⟳ Quét lại</button></li>
+  <li><hr class="dropdown-divider"></li>
+  <li><button class="dropdown-item text-danger" :disabled="!projectMenu?.project.session_count"
+              :class="!projectMenu?.project.session_count && 'disabled'"
+              @click="deleteAllProjectMenu()">🗑 Xoá tất cả session…</button></li>
+</ul>
 
 <!-- ============================================================== Cache -->
 <div class="p-3 overflow-auto" style="height: calc(100vh - 130px);" x-show="activeTab === 'cache'">

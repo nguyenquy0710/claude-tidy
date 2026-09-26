@@ -63,6 +63,7 @@ function app() {
     riskFilter: null,
     scanning: false,
     includeWtChecked: false,
+    projectMenu: null, // {x, y, project} — right-click menu on a sidebar row
 
     // --- Cache tab ---
     cacheGroups: [],
@@ -193,6 +194,68 @@ function app() {
     async deleteAllProject(includeWorktrees) {
       await this.startPreview({ mode: "all", project_id: this.selectedProjectId,
                                 include_worktrees: !!includeWorktrees });
+    },
+
+    // ------------------------------------------------- Project context menu
+
+    openProjectMenu(event, project) {
+      this.projectMenu = { x: event.clientX, y: event.clientY, project };
+    },
+
+    async openProjectFolder() {
+      const project = this.projectMenu.project;
+      this.projectMenu = null;
+      const resp = await api("open_project_folder", project.id);
+      if (resp.error) this.statusRight = resp.error;
+    },
+
+    async copyProjectPath() {
+      const project = this.projectMenu.project;
+      this.projectMenu = null;
+      if (!project.cwd) {
+        this.statusRight = "Project này không có đường dẫn cwd đã biết.";
+        return;
+      }
+      await navigator.clipboard.writeText(project.cwd);
+      this.statusRight = "Đã copy đường dẫn project.";
+    },
+
+    async rescanProjectMenu() {
+      const project = this.projectMenu.project;
+      this.projectMenu = null;
+      const detail = await api("rescan_project", project.id);
+      if (detail.error) {
+        this.statusRight = detail.error;
+        return;
+      }
+      this.replaceProjectEverywhere(detail.project);
+      if (this.selectedProjectId === project.id) {
+        this.project = detail.project;
+        this.sessions = detail.sessions;
+      }
+      this.statusRight = `Đã quét lại ${detail.project.display_name}.`;
+    },
+
+    async deleteAllProjectMenu() {
+      const project = this.projectMenu.project;
+      this.projectMenu = null;
+      if (!project.session_count) return;
+      await this.selectProject(project.id);
+      new bootstrap.Modal("#deleteAllModal").show();
+    },
+
+    // Sidebar rows are snapshots from the last list_projects()/rescan_project()
+    // call — after a per-project rescan only that one entry needs patching in,
+    // not a full re-fetch of every project.
+    replaceProjectEverywhere(updated) {
+      for (const p of this.projects) {
+        if (p.id === updated.id) {
+          Object.assign(p, updated);
+          return;
+        }
+        const w = p.worktrees.find((w) => w.id === updated.id);
+        if (w) Object.assign(w, updated);
+      }
     },
 
     // ----------------------------------------------------------- Cache

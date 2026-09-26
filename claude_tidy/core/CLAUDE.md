@@ -44,7 +44,7 @@ that deletes an `ACTIVE` target.
 ## `check_deletable()` — the allowlist/denylist gate
 
 `scanner.check_deletable()` is called from two independent places
-(`scanner._scan_project` when building bundles, and `deleter.preview` right
+(`scanner.scan_project` when building bundles, and `deleter.preview` right
 before backup/delete) so nothing can reach deletion by skipping the scanner.
 It works by **allowlisting exact shapes** relative to each managed root
 (`projects/<slug>/<sessionId-named-thing>`, `file-history|session-env|tasks/<uuid>`,

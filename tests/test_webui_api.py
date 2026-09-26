@@ -179,6 +179,48 @@ def test_concurrent_delete_is_rejected(app, fake, events, monkeypatch):
     _wait_for_job(events, resp3["job_id"])
 
 
+def test_rescan_project_picks_up_new_session_without_full_rescan(app, fake):
+    projects = app.list_projects()
+    alpha = next(p for p in projects if p["worktrees"])
+    before_count = alpha["session_count"]
+
+    new_sid = "99999999-9999-9999-9999-999999999999"
+    fc._session(fake.paths.claude_home, alpha["id"], new_sid, fc.ALPHA_CWD, "Brand new", age=1)
+
+    detail = app.rescan_project(alpha["id"])
+    assert new_sid in {s["id"] for s in detail["sessions"]}
+    assert detail["project"]["session_count"] == before_count + 1
+
+
+def test_rescan_project_unknown_id_returns_error(app, fake):
+    app.list_projects()
+    assert "error" in app.rescan_project("no-such-project")
+
+
+def test_open_project_folder_missing_cwd_returns_error(app, fake, monkeypatch):
+    app.list_projects()
+    alpha = next(p for p in app._projects if p.worktrees)
+
+    def fail_if_called(_path):
+        raise AssertionError("must not call os.startfile for a missing cwd")
+
+    monkeypatch.setattr(api_module.os, "startfile", fail_if_called)
+    resp = app.open_project_folder(alpha.slug)  # ALPHA_CWD isn't a real dir on this machine
+    assert "error" in resp
+
+
+def test_open_project_folder_opens_existing_cwd(app, fake, monkeypatch):
+    app.list_projects()
+    alpha = next(p for p in app._projects if p.worktrees)
+    alpha.cwd = str(fake.root)  # a directory that really exists, for this test only
+
+    opened = {}
+    monkeypatch.setattr(api_module.os, "startfile", lambda p: opened.setdefault("path", p))
+    resp = app.open_project_folder(alpha.slug)
+    assert resp == {"ok": True}
+    assert opened["path"] == str(fake.root)
+
+
 def test_invalid_mode_and_missing_project_are_rejected(app):
     resp = app.preview_delete({"mode": "bogus"})
     assert "error" in resp

@@ -36,7 +36,7 @@ Bản viết lại bằng **Python**, build thành desktop app native cho Window
 ## 3. Cấu trúc UI
 
 - **Trang chính (Sessions)** — master-detail layout (Bootstrap grid `col-3`/`col-9`):
-  - Panel trái: danh sách **project** (đọc từ slug thư mục trong `~/.claude/projects/`) — dùng `list-group`; worktree lồng dưới project cha (nhận diện qua `cwd`, không decode slug)
+  - Panel trái: danh sách **project** (đọc từ slug thư mục trong `~/.claude/projects/`) — dùng `list-group`; worktree lồng dưới project cha (nhận diện qua `cwd`, không decode slug); chuột phải trên một dòng mở menu ngữ cảnh: mở thư mục project trong Explorer, sao chép đường dẫn, quét lại riêng project đó, xoá tất cả session của project đó
   - Panel phải: bảng **session** của project đang chọn (Bootstrap `table`), mỗi dòng có checkbox + `badge` risk (safe/warning/danger)
   - 3 hành động xoá (nút Bootstrap `btn-danger`/`btn-outline-danger`):
     - Xoá 1 session

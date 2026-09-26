@@ -9,14 +9,19 @@ data and Claude Desktop cache, with backup, active-session detection, and
 per-project session management.
 
 The MVP core (`claude_tidy/core/`) and pytest suite (`tests/`) exist and are
-UI-framework-independent. **The UI is mid-migration, again:** Flet →
-ttkbootstrap (done, then superseded) → **pywebview + HTML/Bootstrap 5**
-(current direction, in progress in `claude_tidy/webui/`). `claude_tidy/ui/`
-(ttkbootstrap) still exists and still runs — it hasn't been removed yet — but
-it is **not** where new UI work goes; it will be deleted once `claude_tidy/webui/`
-reaches parity (task T40). Don't add features to `claude_tidy/ui/`. Setup:
-`python -m venv .venv && .venv/Scripts/pip install -e .[dev]`, then
-`.venv/Scripts/python -m pytest` / `ruff check .` / `python -m claude_tidy`.
+UI-framework-independent. **The UI has been through two rewrites in one day
+(2026-09-25):** Flet → ttkbootstrap (superseded) → **pywebview +
+HTML/Bootstrap 5/Alpine.js**, now the sole UI in `claude_tidy/webui/`.
+`claude_tidy/ui/` (ttkbootstrap) was deleted outright in task T40 once
+`webui/` reached parity — this repo keeps exactly one UI at a time, never two
+in parallel long-term. The only work left on the current UI is `T42` (E2E
+Playwright coverage + a clean-machine/no-WebView2 smoke test). Setup:
+`python -m venv .venv && .venv/Scripts/pip install -e .[dev]` (or
+`.bin/py-requirements.bat --install`), then `.venv/Scripts/python -m pytest` /
+`ruff check .` / `python -m claude_tidy` (or `.bin/run_webapp.bat`). The
+committed `requirements.txt` at repo root is an empty stub, not the real
+dependency source — `pyproject.toml` is (see `.bin/py-requirements.bat`'s own
+comment to this effect).
 
 Read, in order: `plans/2026-09-25-session-cleaner-mvp-roadmap.md` (original
 scope/architecture, T01–T21, §6 all resolved), then
@@ -25,15 +30,15 @@ scope/architecture, T01–T21, §6 all resolved), then
 QUYIT-763..773 were transitioned to Rejected on 2026-09-26, same precedent as
 T01/T16 when Flet was superseded), then
 [plans/2026-09-25-pywebview-ui-migration-planning.md](plans/2026-09-25-pywebview-ui-migration-planning.md)
-(T33–T43 — **current**, source of truth for the UI in progress). Do not
-re-derive the architecture from scratch; it is already designed there.
+(T33–T43 — **current**, source of truth for the UI; all done except `T42`).
+Do not re-derive the architecture from scratch; it is already designed there.
 
 ## Tech stack
 
 | Component | Choice |
 |---|---|
 | Language | Python 3.11+ |
-| GUI framework | **pywebview** + HTML/Bootstrap 5 (in progress) — replacing ttkbootstrap, which replaced Flet |
+| GUI framework | **pywebview** (WebView2/`edgechromium`) + static HTML/Bootstrap 5/Alpine.js — replaced ttkbootstrap, which replaced Flet |
 | Packaging | PyInstaller, `--onedir` (not `--onefile` — measured cold-start regression) |
 | Safe deletion | Backup to timestamped `.zip` + manifest (not `send2trash`/Recycle Bin — see rationale below) |
 | Process detection | `psutil` (PID liveness + `create_time()` to defeat PID reuse) |
@@ -50,17 +55,15 @@ Two-layer design, core logic independent of the UI so the dangerous parts
 ```
 claude_tidy/
   core/       # filesystem + safety logic — no UI framework import anywhere in here
-  ui/         # ttkbootstrap views (being phased out — see Tech stack above)
-  webui/      # pywebview + HTML/Bootstrap 5 (current UI direction, in progress)
+  webui/      # pywebview + HTML/Bootstrap 5/Alpine.js — the UI
 tests/
   fixtures/   # fake ~/.claude tree, regenerated per test
 ```
 
 See [claude_tidy/CLAUDE.md](claude_tidy/CLAUDE.md) for the package-level
 conventions, [claude_tidy/core/CLAUDE.md](claude_tidy/core/CLAUDE.md) for the
-deletion-pipeline internals, [claude_tidy/ui/CLAUDE.md](claude_tidy/ui/CLAUDE.md)
-for the (soon-to-be-removed) ttkbootstrap layer, `claude_tidy/webui/CLAUDE.md`
-for the pywebview layer once it exists, and [tests/CLAUDE.md](tests/CLAUDE.md)
+deletion-pipeline internals, [claude_tidy/webui/CLAUDE.md](claude_tidy/webui/CLAUDE.md)
+for the pywebview/JS trust boundary, and [tests/CLAUDE.md](tests/CLAUDE.md)
 for the test harness — each is scoped to that directory and takes precedence
 over this file for anything specific to it.
 
@@ -101,6 +104,14 @@ destroys a Claude Code session the user may still be using.
 9. **`psutil.AccessDenied` counts as `MAYBE_ACTIVE`, not dead.** If the app
    can't read a process's start time, treat it as possibly-active rather than
    assuming it's gone — see `ProcessState.UNKNOWN` in `core/activity.py`.
+10. **The JS frontend is not a trust boundary.** It sends only opaque ids
+    (`project_id`/`session_id`/etc.), never a filesystem path; every delete
+    goes through a server-side `preview_delete(spec)` → `execute_delete(token,
+    confirmed_ids, typed_name)` pair that re-validates everything in Python
+    (`webui/api.py`), so a compromised or buggy frontend still can't delete
+    an `ACTIVE` session or bypass the typed-name check. See
+    [claude_tidy/webui/CLAUDE.md](claude_tidy/webui/CLAUDE.md) for the full
+    contract.
 
 ## Testing requirements
 
@@ -141,20 +152,32 @@ See [tests/CLAUDE.md](tests/CLAUDE.md) for fixture-level detail.
 ## Repo layout today
 
 - `docs/claude-tidy-plan.md` — current product spec (Vietnamese, pywebview +
-  Bootstrap 5). It has been overwritten in place twice now (Flet version,
-  then ttkbootstrap version); each earlier version is only reachable via
+  Bootstrap 5, verified consistent with the code as of `T43`). It has been
+  overwritten in place twice now (Flet version, then ttkbootstrap version);
+  each earlier version is only reachable via
   `git log --follow -- docs/claude-tidy-plan.md`, not as a separate file. See
   [docs/CLAUDE.md](docs/CLAUDE.md).
+- `docs/claude-tidy — UI.html` — a bundler-exported HTML prototype; markup is
+  compressed inside `<script type="__bundler/...">` tags and self-inflates via
+  JS on open. Not directly reusable as source — `webui/static/index.html` was
+  hand-written to match it, not extracted from it (see `T34`).
 - `plans/*.md` — execution plans / task breakdowns, including superseded ones
   kept as historical log (frontmatter `status: superseded`). See
   [plans/CLAUDE.md](plans/CLAUDE.md).
 - `claude_tidy/` — the package; see [claude_tidy/CLAUDE.md](claude_tidy/CLAUDE.md),
   [claude_tidy/core/CLAUDE.md](claude_tidy/core/CLAUDE.md), and
-  [claude_tidy/ui/CLAUDE.md](claude_tidy/ui/CLAUDE.md) (ttkbootstrap, being
-  phased out).
+  [claude_tidy/webui/CLAUDE.md](claude_tidy/webui/CLAUDE.md).
 - `tests/` — pytest suite; see [tests/CLAUDE.md](tests/CLAUDE.md).
 - `main.py` — entry point PyInstaller bundles; `claude-tidy.spec` is the
-  version-controlled build spec (`--onedir`, see Tech stack above).
+  version-controlled build spec (`--onedir`, with `collect_all()` for
+  `webview`/`clr_loader`/`pythonnet` so `Python.Runtime.dll` and
+  `WebView2Loader.dll` get bundled, not just their data files).
+- `.bin/*.bat` + `.bin/bump_version.py` — dev/build scripts (install deps, run
+  the app, build the `.exe`); see each script's own comments before assuming
+  what it does, they resolve the repo root themselves and are meant to be run
+  from anywhere.
+- `requirements.txt` at repo root is an empty, unused stub — don't treat it as
+  the dependency list; `pyproject.toml` is.
 - No `.rtk/` runtime directory: this repo has no build/runtime artifacts that
   land inside the repo tree itself (the app's own backups/logs live under the
   end user's `%LOCALAPPDATA%`, not here; `build/`/`dist/` from PyInstaller are

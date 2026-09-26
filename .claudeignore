@@ -10,9 +10,6 @@ venv/
 build/
 dist/
 
-# Flet build output
-/build/windows/
-
 # Test fixtures with generated fake trees (keep the fixture *code*, not throwaway output)
 tests/fixtures/**/tmp_*
 
