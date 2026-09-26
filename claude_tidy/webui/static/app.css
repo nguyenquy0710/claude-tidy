@@ -1,0 +1,183 @@
+/* Design tokens sampled from docs/claude-tidy — UI.html via getComputedStyle()
+   in a live browser — not eyeballed. See claude_tidy/webui/CLAUDE.md. */
+:root {
+  --ct-body-bg: #e9ecf0;
+  --ct-panel-bg: #f8f9fb;
+  --ct-border: #cfd5dc;
+  --ct-border-light: #dde1e6;
+  --ct-text: #1c2430;
+  --ct-muted: #5b6573;
+  --ct-accent: #1f6fc5;
+  --ct-danger: #b3261e;
+  --ct-warning-bg: #fdf0d2;
+  --ct-warning-fg: #7a5200;
+
+  --bs-body-font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --bs-primary: var(--ct-accent);
+  --bs-primary-rgb: 31, 111, 197;
+  --bs-danger: var(--ct-danger);
+  --bs-body-color: var(--ct-text);
+  --bs-body-bg: var(--ct-body-bg);
+}
+
+body {
+  background: var(--ct-body-bg);
+  color: var(--ct-text);
+  font-size: 14px;
+}
+
+.ct-appbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--ct-border-light);
+  padding: .5rem .75rem;
+}
+
+.ct-appbar .ct-version {
+  color: var(--ct-muted);
+  font-size: .8rem;
+}
+
+.ct-tabs {
+  background: #ffffff;
+  border-bottom: 1px solid var(--ct-border-light);
+}
+
+.ct-tabs .nav-link {
+  color: var(--ct-muted);
+  font-weight: 500;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+
+.ct-tabs .nav-link.active {
+  color: var(--ct-accent);
+  font-weight: 600;
+  background: transparent;
+  border-bottom-color: var(--ct-accent);
+}
+
+.ct-sidebar {
+  background: var(--ct-panel-bg);
+  border-right: 1px solid var(--ct-border-light);
+  width: 300px;
+  min-width: 300px;
+}
+
+.ct-sidebar-label {
+  color: var(--ct-muted);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.ct-project-row {
+  cursor: pointer;
+  padding: .35rem .5rem;
+  border-radius: 4px;
+}
+
+.ct-project-row:hover {
+  background: #eef1f4;
+}
+
+.ct-project-row.active {
+  background: #dde7f3;
+  font-weight: 600;
+}
+
+.ct-project-row .ct-worktree-missing {
+  color: var(--ct-danger);
+}
+
+.ct-stat-block {
+  text-align: right;
+}
+
+.ct-stat-block .ct-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ct-stat-block .ct-stat-label {
+  color: var(--ct-muted);
+  font-size: .75rem;
+}
+
+/* Risk-filter chips: an active chip is a filled `.btn-primary`; the rest
+   use this neutral variant — ttkbootstrap's own "secondary" preset tints
+   both text and border, which read too flat/disabled by comparison. */
+.btn-ct-neutral {
+  background: #ffffff;
+  color: var(--ct-text);
+  border: 1px solid var(--ct-border);
+}
+
+.btn-ct-neutral:hover {
+  background: #f3f5f7;
+  color: var(--ct-text);
+}
+
+table.ct-table thead th {
+  color: var(--ct-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--ct-border-light);
+  background: var(--ct-panel-bg);
+  white-space: nowrap;
+}
+
+table.ct-table td {
+  vertical-align: middle;
+}
+
+.ct-session-title {
+  font-weight: 500;
+}
+
+.ct-session-file {
+  color: var(--ct-muted);
+  font-size: .8rem;
+}
+
+/* Risk badges: real rounded pills, unlike the ttkbootstrap build (a
+   ttk.Treeview cell can only tag a whole row, never draw a pill inside one
+   cell — see claude_tidy/ui/CLAUDE.md). HTML doesn't have that limit. */
+.ct-badge {
+  display: inline-block;
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.ct-badge-danger {
+  background: var(--ct-danger);
+  color: #ffffff;
+}
+
+.ct-badge-warning {
+  background: var(--ct-warning-bg);
+  color: var(--ct-warning-fg);
+}
+
+.ct-badge-safe {
+  color: var(--ct-muted);
+  font-weight: 400;
+}
+
+.ct-statusbar {
+  background: #ffffff;
+  border-top: 1px solid var(--ct-border-light);
+  color: var(--ct-muted);
+  font-size: .8rem;
+  padding: .4rem .75rem;
+}
+
+.ct-alert-lock {
+  background: var(--ct-warning-bg);
+  color: var(--ct-warning-fg);
+  border: 1px solid #f0dca8;
+}

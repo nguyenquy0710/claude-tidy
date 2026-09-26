@@ -12,11 +12,9 @@ class AppState:
     paths: ClaudePaths
     settings: Settings
     # None in production (ActivityDetector defaults to the real PsutilProbe).
-    # Shared by both claude_tidy/ui/ and claude_tidy/webui/ — without this,
-    # neither layer's tests could ever inject a FakeProbe, only core/'s own
-    # ActivityDetector tests could (see tests/test_webui_api.py for why this
-    # matters: a fixture's synthetic PIDs read against the *real* psutil
-    # never match ACTIVE/REUSED, only ever GONE).
+    # Injectable so tests can substitute a FakeProbe — see tests/test_webui_api.py:
+    # a fixture's synthetic PIDs read against the *real* psutil never match
+    # ACTIVE/REUSED, only ever GONE.
     probe: ProcessProbe | None = None
 
     @classmethod

@@ -10,8 +10,8 @@ cd /d "%REPO_ROOT%" || (
     exit /b 1
 )
 
-:: Claude Tidy is a Windows desktop app (ttkbootstrap/Tkinter), not a webapp —
-:: this launcher just activates the venv and starts the GUI.
+:: Claude Tidy is a Windows desktop app (pywebview + HTML/Bootstrap 5), not a
+:: browser webapp — this launcher just activates the venv and starts the GUI.
 
 if not exist ".venv\Scripts\activate.bat" (
     echo [ERROR] Virtual environment not found. Please run installation first:

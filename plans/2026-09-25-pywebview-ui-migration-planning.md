@@ -96,51 +96,98 @@ Task ID đánh tiếp từ **T33** (T01–T32 đã dùng, nhiều task đã gắ
 
 ### W-M1 — Spike & nền
 
-- [ ] **T33 — Spike pywebview + PyInstaller onedir** (**1d**) · DevOps · Trung bình
-  - Cửa sổ pywebview `edgechromium` load `index.html` local. Đo một vòng gọi `js_api` → Python → `evaluate_js` quay lại JS
-  - Đóng gói bằng `--onedir`: kiểm tra hidden import `pythonnet`/`clr_loader` (pywebview trên Windows dùng WinForms qua pythonnet), `datas` cho `static/`, kích thước bundle, thời gian khởi động so với ~1–2.2s hiện tại
-  - Phát hiện WebView2 bị thiếu (registry `EdgeUpdate\Clients\{F3017226-...}`) → hiện hộp thoại kèm link tải
-- [ ] **T34 — Trích prototype → `static/index.html`** (**1d**) · Frontend · Trung bình
-  - Render `docs/claude-tidy — UI.html` trên trình duyệt, trích DOM/CSS thật ra thành `index.html` + `app.css`
-  - Bỏ thành phần bundler; thay Bootstrap CDN (nếu có) bằng file local
-  - Đối chiếu với E6: bổ sung vào layout các trang prototype chưa có (Cache/Temp, Index mồ côi, cây worktree, trường Settings đầy đủ)
-- [ ] **T35 — `js_api` + contract DTO + job runner** (**2d**) · Backend · Trung bình · phụ thuộc T33
-  - `webui/api.py`: `list_projects`, `list_sessions`, `scan_cache`, `list_orphan_index`, `get_settings`, `save_settings` (validate ở Python), `pick_folder` (`create_file_dialog(FOLDER_DIALOG)`), `start_scan` → `job_id`
-  - `webui/dto.py`: chuyển `Project`/`SessionBundle`/`Preview`/`DeleteResult`/`Progress` sang dict JSON-safe (đường dẫn thành `str`, enum thành value)
-  - `webui/jobs.py`: chạy job nền, phát event qua `evaluate_js` + `json.dumps`, hỗ trợ huỷ bằng `threading.Event`
-  - Test pytest cho `Api` **không cần mở cửa sổ** (inject một `window` giả để ghi lại các lời gọi `evaluate_js`), chạy trên fixture tree
-- [ ] **T36 — Luồng xoá phía Python (token)** (**2d**) · Backend · **Cao (an toàn)** · phụ thuộc T35
-  - `preview_delete(spec)` → `token` + DTO 3 nhóm; `execute_delete(token, confirmed_ids, typed_name)` → `job_id`
-  - Kiểm tra ở Python: token hợp lệ và chỉ dùng một lần; `confirmed_ids ⊆ needs_confirmation`; `typed_name` khớp khi mode `all`; lock một luồng
-  - Giữ nguyên `prune_backups` sau khi xoá và cơ chế huỷ giữa các mục
-  - Test: token dùng lại bị từ chối; `confirmed_ids` chứa id `ACTIVE` bị từ chối; nhập sai tên bị từ chối; gọi xoá song song bị từ chối
+- [x] **T33 — Spike pywebview + PyInstaller onedir** (**1d**) · DevOps · Trung bình — **2026-09-26**
+  - Xác nhận bằng script spike thật (không phải HTML tĩnh giả lập): cửa sổ pywebview `edgechromium`
+    load `static/index.html` thật, gắn `Api` thật + cây `~/.claude` giả từ fixture. Gọi
+    `window.pywebview.api.list_projects()` từ JS, nhận về đúng 2 project — vòng JS → Python → JS
+    hoạt động đúng.
+  - **Phát hiện quan trọng:** `window.evaluate_js(script)` (chiều Python → JS) mặc định **không**
+    tự resolve Promise — nếu script trả về Promise mà không truyền tham số `callback`, kết quả nhận
+    được chỉ là `{}` (Promise bị serialize rỗng), không phải lỗi. Phải gọi
+    `evaluate_js(script, callback=...)` để nhận giá trị đã resolve. Không ảnh hưởng chiều
+    `onJobEvent` hiện có (`jobs.py` không đọc giá trị trả về của `evaluate_js`), nhưng **phải nhớ
+    quy tắc này** nếu sau này cần Python đọc lại giá trị từ JS.
+  - Đóng gói `--onedir` với `--collect-all webview --collect-all clr_loader --collect-all pythonnet`:
+    build thành công, `Python.Runtime.dll` và `WebView2Loader.dll` (x86/x64/arm64) được gói đúng,
+    bundle ~46MB. Đây là flag cần đưa vào `claude-tidy.spec` ở T41.
+  - Xác nhận máy dev có WebView2 Runtime (registry `EdgeUpdate\Clients\{F3017226-...}`, bản
+    153.0.4234.32) — chưa test được nhánh "thiếu WebView2" vì máy dev luôn có sẵn.
+  - Ghi chú: `pywebview`/`pythonnet`/`clr_loader` đang cài thủ công trong `.venv`, **chưa** khai báo
+    trong `pyproject.toml` — cần bổ sung ở T40.
+- [x] **T34 — Trích prototype → `static/index.html`** (**1d**) · Frontend · Trung bình — **2026-09-26**
+  - Viết trực tiếp `index.html` (4 tab Bootstrap 5 + Alpine.js `x-data="app()"`) khớp với `app.js`/`app.css`
+    đã có sẵn, thay vì trích DOM từ file bundler gốc (cách nhanh hơn, cùng kết quả markup).
+  - Đối chiếu E6: đủ cả 4 trang (Sessions, Cache/Temp, Index mồ côi, Settings), cây worktree lồng
+    dưới project cha, badge rủi ro dạng pill thật.
+- [x] **T35 — `js_api` + contract DTO + job runner** (**2d**) · Backend · Trung bình · phụ thuộc T33 — **Done** (đã hoàn thành trước phiên 2026-09-26, xác nhận lại qua `tests/test_webui_api.py` 8 test pass)
+- [x] **T36 — Luồng xoá phía Python (token)** (**2d**) · Backend · **Cao (an toàn)** · phụ thuộc T35 — **Done** (đã hoàn thành trước phiên 2026-09-26; `test_concurrent_delete_is_rejected`, `test_token_is_one_time_use`, `test_delete_all_requires_matching_typed_name`, `test_active_session_is_never_deleted_even_if_confirmed` đều pass)
 
 ### W-M2 — Các trang
 
-- [ ] **T37 — Trang Explorer + các modal xoá** (**3.5d**) · Frontend heavy · Cao · phụ thuộc T34, T36
-  - `list-group` project, worktree lồng dưới project cha; bảng session có checkbox, badge (safe/warning/danger), dung lượng, thời điểm ghi cuối
-  - 3 nút xoá → modal preview 3 nhóm (checkbox cho `MAYBE_ACTIVE`) → ô nhập tên khi xoá tất cả → modal tiến độ có nút huỷ → modal kết quả
-  - Render theo lô / virtual scroll cho project có ≥ 1.000 session
-- [ ] **T38 — Trang Cache/Temp + Index mồ côi** (**1.5d**) · Frontend · Thấp · phụ thuộc T37
-  - Cảnh báo khi Claude Desktop đang chạy; Index mồ côi xác nhận **từng file**, không có nút xoá tất cả
-- [ ] **T39 — Trang Settings** (**1d**) · Frontend · Thấp · phụ thuộc T35
-  - Form: thư mục backup (nút chọn thư mục), số ngày giữ, bật/tắt auto-xoá, ngưỡng 5 phút, ngưỡng 24h; lỗi validate trả về từ Python
+- [x] **T37 — Trang Explorer + các modal xoá** (**3.5d**) · Frontend heavy · Cao · phụ thuộc T34, T36 — **2026-09-26**
+  - Xác minh bằng Playwright (không phải chỉ đọc code): 4 tab, danh sách project + worktree, bảng
+    session với checkbox/badge/dung lượng, 3 luồng xoá (single/multi/all) qua modal preview 3 nhóm →
+    modal tiến độ → modal kết quả, đúng số lượng/dung lượng tính toán ở mỗi bước.
+  - **2 lỗi thật phát hiện và đã sửa trong lúc verify:**
+    1. `includeWtChecked` (checkbox "áp dụng cho worktree con" trong modal xoá tất cả) được dùng
+       trong `index.html` nhưng chưa khai báo trong state `app()` của `app.js` → Alpine báo lỗi
+       `ReferenceError`. Đã thêm `includeWtChecked: false` vào state.
+    2. `x-show` của Alpine đặt trên phần tử có class Bootstrap `.d-flex` (là `display:flex
+       !important`) bị chính class đó đè, nên tab Sessions **không bao giờ ẩn thật sự** khi chuyển
+       sang tab khác (dù DOM nội bộ đã đúng, phần tử vẫn hiển thị đè lên tab mới do CSS
+       `!important` thắng inline style thường). Sửa bằng modifier `x-show.important` (Alpine 3) ở
+       2 chỗ: wrapper tab Sessions và alert cảnh báo Claude Desktop đang chạy trong tab Cache/Temp
+       (cùng pattern, cùng lỗi).
+  - Chưa làm: virtual scroll cho project ≥ 1.000 session (chưa có dữ liệu lớn để test).
+- [x] **T38 — Trang Cache/Temp + Index mồ côi** (**1.5d**) · Frontend · Thấp · phụ thuộc T37 — **2026-09-26**
+  - Xác minh qua Playwright: cảnh báo khoá hiện đúng khi `claude_desktop_pid` có giá trị, ẩn đúng khi
+    `null` (test cả 2 trường hợp). Tab Index mồ côi: mỗi dòng xác nhận riêng, nút xoá chỉ bật khi có
+    dòng được chọn, không có nút xoá tất cả (đúng quyết định roadmap §6.5).
+- [x] **T39 — Trang Settings** (**1d**) · Frontend · Thấp · phụ thuộc T35 — **2026-09-26**
+  - Xác minh qua Playwright: form load đúng giá trị từ `get_settings`, nút Lưu gọi `save_settings`
+    và hiện "Đã lưu." + cập nhật status bar.
 
 ### W-M3 — Gỡ ttkbootstrap, đóng gói, QA, tài liệu
 
-- [ ] **T40 — Gỡ UI ttkbootstrap** (**0.5d**) · DevOps · Thấp · phụ thuộc T37–T39
-  - Xoá `claude_tidy/ui/`; `pyproject.toml` bỏ `ttkbootstrap`, thêm `pywebview`; cập nhật `main.py`, `__main__.py`, các `.bat`
-  - Viết lại `claude_tidy/ui/CLAUDE.md` thành `claude_tidy/webui/CLAUDE.md` (ranh giới tin cậy, contract DTO, quy tắc `json.dumps`); cập nhật root `CLAUDE.md`
-- [ ] **T41 — Đóng gói PyInstaller** (**1.5d**) · DevOps · Trung bình · phụ thuộc T33, T40
-  - Cập nhật `claude-tidy.spec`: `datas` cho `static/`, hidden import của pywebview/pythonnet, **giữ onedir**
-  - Smoke test `.exe` trên máy dev; kiểm lại trường hợp không có WebView2
+- [x] **T40 — Gỡ UI ttkbootstrap** (**0.5d**) · DevOps · Thấp · phụ thuộc T37–T39 — **2026-09-26**
+  - Xoá toàn bộ `claude_tidy/ui/` (9 file) + `tests/test_ui_dispatch.py` (test riêng cho
+    `ui.dispatch`, không còn gì để test sau khi xoá `ui/`).
+  - Chuyển `AppState` từ `claude_tidy/ui/state.py` sang `claude_tidy/webui/state.py` (module này
+    vốn không import Tk, chỉ là data loading — thuộc về lớp UI hiện tại).
+  - Viết `claude_tidy/webui/app.py`: `run()` — kiểm tra WebView2 qua registry (3 khoá: HKLM
+    WOW6432Node, HKLM native, HKCU — theo đúng key `EdgeUpdate\Clients\{F3017226-...}` đã xác nhận ở
+    T33), thiếu thì hiện `MessageBoxW` (không import `tkinter`) kèm link tải, có thì
+    `webview.create_window(...) + webview.start(gui="edgechromium")`.
+  - `pyproject.toml`: bỏ `ttkbootstrap>=1.10`, thêm `pywebview>=6.2`. `claude_tidy/__main__.py` gọi
+    `webui.app.run()` thay vì `ui.app.run()`. `.bin/run_webapp.bat` sửa comment (hành vi không đổi).
+  - Viết `claude_tidy/webui/CLAUDE.md` (ranh giới tin cậy, contract DTO, quy tắc
+    `evaluate_js`/Promise phát hiện ở T33, quy tắc `x-show.important` phát hiện ở T37); cập nhật
+    `claude_tidy/CLAUDE.md` bỏ hết tham chiếu `ui/`. Root `CLAUDE.md` đã được cập nhật trước đó.
+  - `pytest`: 71 pass (77 trước đó trừ 6 test của `test_ui_dispatch.py` đã xoá cùng `ui/`); `ruff`
+    sạch. `python -c "import claude_tidy.webui.app"` không lỗi, `_webview2_installed()` trả `True`
+    trên máy dev.
+- [x] **T41 — Đóng gói PyInstaller** (**1.5d**) · DevOps · Trung bình · phụ thuộc T33, T40 — **2026-09-26**
+  - Cập nhật `claude-tidy.spec`: `collect_all()` cho `webview`/`clr_loader`/`pythonnet` (không chỉ
+    `collect_data_files` — cần cả binary `Python.Runtime.dll`/`WebView2Loader.dll`, không chỉ data),
+    `datas` thêm `claude_tidy/webui/static` → `claude_tidy/webui/static`. Giữ nguyên `--onedir`.
+  - **Build thật + chạy thật** `dist/claude-tidy/claude-tidy.exe` (không phải spike riêng): xác nhận
+    `_internal/claude_tidy/webui/static/` có đủ `index.html`/`app.css`/`app.js`/`vendor/`,
+    `WebView2Loader.dll` (x86/x64/arm64) và `Python.Runtime.dll` có mặt, tổng bundle **26.8MB**. Khởi
+    chạy exe đóng gói, xác nhận tiến trình chạy ổn định (không crash ngay), rồi đóng — không thao
+    tác gì bên trong cửa sổ thật (tránh đụng dữ liệu `~/.claude` thật của máy dev).
+  - Chưa làm: kiểm tra nhánh "thiếu WebView2" (máy dev luôn có sẵn runtime — cần máy/VM không có để
+    test nhánh này, kế thừa sang phần "smoke test máy sạch" của T42).
 - [ ] **T42 — Test E2E frontend + smoke** (**1.5d**) · QA · Trung bình · phụ thuộc T37–T39
   - Playwright chạy `index.html` với `window.pywebview.api` giả (trả DTO mẫu). Kiểm tra: 3 chế độ xoá, `MAYBE_ACTIVE` phải tick mới xoá, nhập tên khi xoá tất cả, huỷ, kết quả
   - `pytest` + `ruff` sạch; test core cũ pass nguyên vẹn
   - Kế thừa phần còn mở của **T31**: smoke test trên máy/VM sạch (kèm kiểm tra antivirus báo nhầm)
-- [ ] **T43 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp
-  - Sửa `docs/claude-tidy-plan.md` theo E1–E6, **không** đưa lại các câu hỏi đã chốt vào mục "Câu hỏi còn mở"
-  - Ghi quyết định WebView2 (câu hỏi 6.3) vào tài liệu
+- [x] **T43 — Đồng bộ tài liệu** (**0.5d**) · Docs · Thấp — **2026-09-26** (nội dung do một tiến
+  trình khác đồng bộ trước đó — xem mục 1.3/6 ở trên; phiên này chỉ **xác minh lại**, không viết
+  lại)
+  - Đối chiếu `docs/claude-tidy-plan.md` với code thật: `retention_days=14`,
+    `maybe_active_minutes=5` khớp `Settings` (`core/settings.py`); mục "11. Câu hỏi còn mở" đã ghi
+    đúng 4 quyết định (active/maybe_active, backup mặc định, WebView2, `--onedir`), không còn câu
+    hỏi treo, không lặp lại câu đã chốt.
 
 ### Phase 2 (không đổi, chỉ ghi chú ảnh hưởng)
 

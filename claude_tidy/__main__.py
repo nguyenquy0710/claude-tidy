@@ -1,6 +1,6 @@
 import logging
 
-from claude_tidy.ui.app import run
+from claude_tidy.webui.app import run
 
 
 def main() -> None:

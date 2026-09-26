@@ -5,9 +5,9 @@ import time
 
 import pytest
 
-from claude_tidy.ui.state import AppState
 from claude_tidy.webui import api as api_module
 from claude_tidy.webui.api import Api
+from claude_tidy.webui.state import AppState
 from tests.fixtures import fake_claude as fc
 
 

@@ -7,17 +7,13 @@ first, it applies to everything under here.
 ## Layout
 
 - `core/` — filesystem scanning, activity detection, risk classification,
-  backup, and the single deletion pipeline. No `tkinter`/`ttkbootstrap` import
-  belongs in this package; it must stay unit-testable without a GUI. See
+  backup, and the single deletion pipeline. No UI framework import belongs
+  in this package; it must stay unit-testable without a GUI. See
   [core/CLAUDE.md](core/CLAUDE.md).
-- `ui/` — ttkbootstrap views and the one delete-flow entry point. **Being
-  phased out** — see [ui/CLAUDE.md](ui/CLAUDE.md) and the pywebview migration
-  plan below. Don't add new features here.
-- `webui/` — pywebview + HTML/Bootstrap 5, the current UI direction (in
-  progress). See `webui/CLAUDE.md` once it exists.
-- `__main__.py` — `python -m claude_tidy` entry point; currently wires
-  logging and calls `ui.app.run()`; will switch to `webui` once T40
-  (see the migration plan) removes `ui/`.
+- `webui/` — pywebview + HTML/Bootstrap 5, the UI. See
+  [webui/CLAUDE.md](webui/CLAUDE.md).
+- `__main__.py` — `python -m claude_tidy` entry point; wires logging and
+  calls `webui.app.run()`.
 
 ## Cross-cutting conventions
 
@@ -31,11 +27,11 @@ first, it applies to everything under here.
 - Vietnamese is the UI's user-facing language (labels, dialogs, status text)
   — keep new UI strings in Vietnamese to match the existing views. Code
   identifiers, docstrings, and comments stay in English.
-- `ui/` was rewritten from Flet to ttkbootstrap on 2026-09-25 — see
-  [plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md)
-  (now superseded). It is in turn being replaced by `webui/` (pywebview) —
-  see [plans/2026-09-25-pywebview-ui-migration-planning.md](../plans/2026-09-25-pywebview-ui-migration-planning.md).
-  Don't build out `ui/` further; new UI work goes in `webui/`. Once `webui/`
-  reaches parity, `ui/` is deleted outright (task T40) — this repo has kept
-  exactly one UI at a time through both migrations (root CLAUDE.md rule: one
-  deletion pipeline, one UI), never two in parallel long-term.
+- The UI went through two rewrites in one day (2026-09-25): Flet →
+  ttkbootstrap ([plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md),
+  now superseded) → pywebview
+  ([plans/2026-09-25-pywebview-ui-migration-planning.md](../plans/2026-09-25-pywebview-ui-migration-planning.md),
+  current). `claude_tidy/ui/` (ttkbootstrap) was deleted outright in task T40
+  once `webui/` reached parity — this repo keeps exactly one UI at a time
+  (root CLAUDE.md rule: one deletion pipeline, one UI), never two in
+  parallel long-term.

@@ -60,7 +60,13 @@ class Api:
         return [dto.project_to_dict(p) for p in self._projects]
 
     def list_sessions(self, project_id: str) -> dict:
-        project = self._find_project(project_id)
+        try:
+            project = self._find_project(project_id)
+        except InvalidRequest as exc:
+            # Real case, not just paranoia: rescanSessions() re-selects the
+            # previously-open project on every refresh, and that project may
+            # have been the one just deleted (e.g. "delete all").
+            return {"error": str(exc)}
         detector = self._state.new_detector()
         now = time.time()
         sessions = []
