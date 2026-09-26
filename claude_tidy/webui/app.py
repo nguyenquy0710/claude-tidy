@@ -67,8 +67,9 @@ def run() -> None:
         window.evaluate_js(f"onJobEvent({json.dumps(event_name)}, {json.dumps(payload)})")
 
     api = Api(state, notify=notify)
-    index_html = Path(__file__).parent / "static" / "index.html"
+    static_dir = Path(__file__).parent / "static"
     window = webview.create_window(
-        "claude-tidy", str(index_html), js_api=api, width=1280, height=800, min_size=(960, 600),
+        "claude-tidy", str(static_dir / "index.html"), js_api=api,
+        width=1280, height=800, min_size=(960, 600),
     )
-    webview.start(gui="edgechromium")
+    webview.start(gui="edgechromium", icon=str(static_dir / "icon.ico"))
