@@ -1,7 +1,7 @@
 ---
 type: refactor
 complexity: medium
-status: in-progress
+status: superseded
 related_issues: [QUYIT-741, QUYIT-742, QUYIT-757, QUYIT-763, QUYIT-764, QUYIT-765, QUYIT-766, QUYIT-767, QUYIT-768, QUYIT-769, QUYIT-770, QUYIT-771, QUYIT-772, QUYIT-773]
 related_prs: []
 estimated_hours: ~150 (≈ 19 person-days, gồm buffer)
@@ -9,8 +9,21 @@ estimated_hours: ~150 (≈ 19 person-days, gồm buffer)
 
 # Kế hoạch: Chuyển UI claude-tidy từ Flet sang ttkbootstrap + PyInstaller
 
+> ⚠️ **SUPERSEDED (2026-09-26).** `docs/claude-tidy-plan.md` đã đổi hướng UI
+> sang **pywebview + HTML/Bootstrap 5** ngay hôm sau khi plan này hoàn thành —
+> xem [2026-09-25-pywebview-ui-migration-planning.md](2026-09-25-pywebview-ui-migration-planning.md)
+> (task T33–T43, epic QUYIT-741). ttkbootstrap **không còn là UI đích**; T40
+> của plan pywebview sẽ gỡ hẳn `claude_tidy/ui/` khi các trang pywebview đạt
+> tương đương. 11 issue Jira T22–T32 (QUYIT-763→773) đã được chuyển sang
+> **Rejected** ngày 2026-09-26 — cùng tiền lệ với T01/T16 (QUYIT-742/757) khi
+> Flet từng bị thay bằng ttkbootstrap. **Giữ file này lại nguyên vẹn** làm
+> nhật ký công việc/rationale của giai đoạn ttkbootstrap (theo `plans/CLAUDE.md`
+> và `docs/CLAUDE.md`: không xoá quyết định lịch sử, chỉ đánh dấu đã bị thay).
+> Nội dung bên dưới phản ánh đúng trạng thái tại thời điểm 2026-09-25 — không
+> sửa lại theo hồi tưởng.
+
 > **Ngày lập kế hoạch:** 2026-09-25
-> **Nguồn yêu cầu:** [docs/claude-tidy-plan.md](../docs/claude-tidy-plan.md) (phân tích bằng `/nqdev-client-requirement-insight`)
+> **Nguồn yêu cầu:** [docs/claude-tidy-plan.md](../docs/claude-tidy-plan.md) (phân tích bằng `/nqdev-client-requirement-insight`) — **lưu ý:** tài liệu này đã được viết đè sang bản pywebview ngày 2026-09-26; nội dung tại thời điểm plan này được lập chỉ còn xem được qua `git log --follow -- docs/claude-tidy-plan.md`.
 > **Kế hoạch gốc liên quan:** [2026-09-25-session-cleaner-mvp-roadmap.md](2026-09-25-session-cleaner-mvp-roadmap.md) (T01–T21, epic QUYIT-741)
 > **Scope dự kiến:** `claude_tidy/ui/` (viết lại toàn bộ), `main.py`, `claude_tidy/__main__.py`, `pyproject.toml`, file `.spec` PyInstaller (mới), các `CLAUDE.md` liên quan, `docs/claude-tidy-plan.md`
 > **Priority:** high

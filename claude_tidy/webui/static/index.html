@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude-tidy</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="vendor/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body x-data="app()" x-init="init()" x-cloak>
+
+<!-- App bar: icon + name + version. No custom title bar — the native OS one
+     stays (see claude_tidy/webui/CLAUDE.md for why). -->
+<div class="ct-appbar d-flex align-items-center">
+  <img src="icon.png" alt="" width="20" height="20" class="me-2">
+  <span class="fw-bold me-2">claude-tidy</span>
+  <span class="ct-version">v0.1 · MVP</span>
+</div>
+
+<ul class="nav ct-tabs px-2">
+  <li class="nav-item">
+    <button class="nav-link" :class="activeTab === 'sessions' && 'active'"
+            @click="selectTab('sessions')">Sessions</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" :class="activeTab === 'cache' && 'active'"
+            @click="selectTab('cache')">Cache/Temp</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" :class="activeTab === 'index' && 'active'"
+            @click="selectTab('index')">
+      Index mồ côi
+      <span class="badge rounded-pill text-bg-secondary ms-1" x-show="orphanEntries.length"
+            x-text="orphanEntries.length"></span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" :class="activeTab === 'settings' && 'active'"
+            @click="selectTab('settings')">Cài đặt</button>
+  </li>
+</ul>
+
+<!-- ============================================================ Sessions -->
+<div class="d-flex" style="height: calc(100vh - 130px);" x-show.important="activeTab === 'sessions'">
+  <div class="ct-sidebar d-flex flex-column p-2">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="ct-sidebar-label d-flex align-items-center gap-1">
+        Project
+        <button type="button" class="btn btn-sm btn-link p-0 ct-sidebar-refresh" title="Quét lại danh sách project"
+                :disabled="scanning" @click="rescanSessions()">⟳</button>
+      </span>
+      <span class="ct-sidebar-label" x-text="`${projects.length} project · ${humanSize(projects.reduce((n,p)=>n+p.size_bytes,0))}`"></span>
+    </div>
+    <input type="text" class="form-control form-control-sm mb-2" placeholder="Lọc project…"
+           x-model="projectFilter">
+    <div class="overflow-auto flex-grow-1">
+      <template x-for="p in filteredProjects" :key="p.id">
+        <div>
+          <div class="ct-project-row d-flex justify-content-between"
+               :class="selectedProjectId === p.id && 'active'"
+               @click="selectProject(p.id)"
+               @contextmenu.prevent="openProjectMenu($event, p)">
+            <span class="text-truncate" x-text="p.display_name"></span>
+            <span class="text-nowrap small text-muted ms-2"
+                  x-text="`${p.session_count} · ${humanSize(p.size_bytes)}`"></span>
+          </div>
+          <template x-for="w in p.worktrees" :key="w.id">
+            <div class="ct-project-row d-flex justify-content-between ps-3"
+                 :class="[selectedProjectId === w.id && 'active', !w.worktree_exists && 'ct-worktree-missing']"
+                 @click="selectProject(w.id)"
+                 @contextmenu.prevent="openProjectMenu($event, w)">
+              <span class="text-truncate" x-text="w.worktree_name"></span>
+              <span class="text-nowrap small text-muted ms-2"
+                    x-text="`${w.session_count} · ${humanSize(w.size_bytes)}${!w.worktree_exists ? ' · mất' : ''}`"></span>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <div class="flex-grow-1 p-3 overflow-auto">
+    <template x-if="!project">
+      <p class="text-muted">Chọn một project ở bên trái.</p>
+    </template>
+    <template x-if="project">
+      <div>
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h4 class="mb-0" x-text="project.display_name"></h4>
+            <div class="text-muted small" x-text="project.cwd || project.id"></div>
+          </div>
+          <div class="d-flex gap-4">
+            <div class="ct-stat-block">
+              <div class="ct-stat-value" x-text="sessions.length"></div>
+              <div class="ct-stat-label">session</div>
+            </div>
+            <div class="ct-stat-block">
+              <div class="ct-stat-value" x-text="humanSize(sessions.reduce((n,s)=>n+s.size_bytes,0))"></div>
+              <div class="ct-stat-label">trên đĩa</div>
+            </div>
+            <div class="ct-stat-block">
+              <div class="ct-stat-value" x-text="sessions.filter(s=>s.risk==='danger').length"></div>
+              <div class="ct-stat-label">đang chạy</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-group btn-group-sm mb-2" role="group">
+          <button class="btn" :class="!riskFilter ? 'btn-primary' : 'btn-ct-neutral'"
+                  @click="riskFilter = null">Tất cả</button>
+          <button class="btn" :class="riskFilter === 'safe' ? 'btn-primary' : 'btn-ct-neutral'"
+                  @click="riskFilter = 'safe'">An toàn</button>
+          <button class="btn" :class="riskFilter === 'warning' ? 'btn-primary' : 'btn-ct-neutral'"
+                  @click="riskFilter = 'warning'">Cảnh báo</button>
+          <button class="btn" :class="riskFilter === 'danger' ? 'btn-primary' : 'btn-ct-neutral'"
+                  @click="riskFilter = 'danger'">Đang chạy</button>
+        </div>
+
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-sm btn-ct-neutral" @click="rescanSessions()">⟳ Quét lại</button>
+          <button class="btn btn-sm btn-primary" :disabled="!checkedCount" @click="deleteChecked()">
+            <span x-text="checkedCount ? `Xoá đã chọn (${checkedCount} · ${humanSize(checkedSize)})` : 'Xoá đã chọn'"></span>
+          </button>
+          <button class="btn btn-sm btn-outline-danger"
+                  :disabled="!sessions.length"
+                  data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+            Xoá tất cả session…
+          </button>
+        </div>
+
+        <table class="table table-sm ct-table">
+          <thead>
+            <tr>
+              <th style="width:28px"></th>
+              <th>Session</th>
+              <th>Ghi lần cuối</th>
+              <th>Tin nhắn</th>
+              <th>Dung lượng</th>
+              <th>Rủi ro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="s in visibleSessions" :key="s.id">
+              <tr @dblclick="s.risk !== 'danger' && deleteSingle(s.id)">
+                <td>
+                  <input type="checkbox" class="form-check-input" :disabled="s.risk === 'danger'"
+                         :checked="!!checked[s.id]" @change="toggleSession(s.id)">
+                </td>
+                <td>
+                  <div class="ct-session-title" x-text="s.title || '(không có tiêu đề)'"></div>
+                  <div class="ct-session-file" x-text="s.id.slice(0,8) + '.jsonl'"></div>
+                </td>
+                <td x-text="relativeTime(s.last_write)"></td>
+                <td x-text="s.message_count"></td>
+                <td x-text="s.size_human"></td>
+                <td>
+                  <span :class="riskBadge(s).cls" x-text="riskBadge(s).text"></span>
+                  <span x-show="s.risk === 'danger'" title="Đang chạy — không thể xoá">🔒</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
+</div>
+
+<!-- Project right-click menu (Sessions tab sidebar) -->
+<ul class="dropdown-menu show" x-show="projectMenu" x-on:click.outside="projectMenu = null"
+    :style="`position: fixed; left: ${projectMenu?.x}px; top: ${projectMenu?.y}px; z-index: 3000;`">
+  <li><h6 class="dropdown-header text-truncate" style="max-width: 260px"
+          x-text="projectMenu?.project.display_name"></h6></li>
+  <li><button class="dropdown-item" @click="openProjectFolder()">📂 Open Explorer</button></li>
+  <li><button class="dropdown-item" @click="copyProjectPath()">📋 Sao chép</button></li>
+  <li><button class="dropdown-item" @click="rescanProjectMenu()">⟳ Quét lại</button></li>
+  <li><hr class="dropdown-divider"></li>
+  <li><button class="dropdown-item text-danger" :disabled="!projectMenu?.project.session_count"
+              :class="!projectMenu?.project.session_count && 'disabled'"
+              @click="deleteAllProjectMenu()">🗑 Xoá tất cả session…</button></li>
+</ul>
+
+<!-- ============================================================== Cache -->
+<div class="p-3 overflow-auto" style="height: calc(100vh - 130px);" x-show="activeTab === 'cache'">
+  <div class="d-flex justify-content-between align-items-start mb-2">
+    <div>
+      <h4 class="mb-0">Cache & file tạm</h4>
+      <div class="text-muted small">Claude Desktop (%APPDATA%\Claude) và %TEMP%\claude</div>
+    </div>
+    <div class="ct-stat-block">
+      <div class="ct-stat-value" x-text="humanSize(cacheGroups.reduce((n,g)=>n+g.size_bytes,0))"></div>
+      <div class="ct-stat-label">tổng có thể dọn</div>
+    </div>
+  </div>
+
+  <div class="alert ct-alert-lock d-flex justify-content-between align-items-center" x-show.important="claudeDesktopPid">
+    <div>
+      <div class="fw-bold" x-text="`Claude Desktop đang chạy (PID ${claudeDesktopPid})`"></div>
+      <div class="small">Một số file cache đang bị khoá. Đóng Claude Desktop trước khi xoá để tránh lỗi.</div>
+    </div>
+    <button class="btn btn-sm btn-ct-neutral" @click="rescanCache()">Kiểm tra lại</button>
+  </div>
+
+  <table class="table table-sm ct-table">
+    <thead>
+      <tr>
+        <th style="width:28px"></th>
+        <th>Nhóm</th>
+        <th>Đường dẫn</th>
+        <th>File</th>
+        <th>Dung lượng</th>
+      </tr>
+    </thead>
+    <tbody>
+      <template x-for="g in cacheGroups" :key="g.id">
+        <tr>
+          <td><input type="checkbox" class="form-check-input" :checked="!!cacheChecked[g.id]"
+                     @change="cacheChecked[g.id] = !cacheChecked[g.id]"></td>
+          <td x-text="g.name"></td>
+          <td class="text-muted small" x-text="g.root"></td>
+          <td x-text="g.file_count"></td>
+          <td x-text="g.size_human"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="text-muted small"
+          x-text="cacheCheckedCount ? `Đã chọn ${cacheCheckedCount} nhóm · ${humanSize(cacheCheckedSize)}` : 'Tick một nhóm cache để xem trước & xoá.'"></span>
+    <button class="btn btn-sm btn-primary" :disabled="!cacheCheckedCount" @click="deleteCacheChecked()">
+      Xem trước & xoá
+    </button>
+  </div>
+</div>
+
+<!-- ========================================================= Index mồ côi -->
+<div class="p-3 overflow-auto" style="height: calc(100vh - 130px);" x-show="activeTab === 'index'">
+  <h4>Index mồ côi</h4>
+  <p class="text-muted small">
+    File ~/.claude/sessions/&lt;pid&gt;.json của process đã tắt, hoặc PID đã bị hệ điều hành cấp
+    lại cho process khác (create_time không khớp procStart). Mỗi file cần được xác nhận riêng.
+  </p>
+
+  <table class="table table-sm ct-table">
+    <thead>
+      <tr><th>File</th><th>PID</th><th>procStart</th><th>Lý do</th></tr>
+    </thead>
+    <tbody>
+      <template x-for="e in orphanEntries" :key="e.id">
+        <tr class="ct-project-row" :class="selectedOrphanId === e.id && 'active'"
+            @click="selectedOrphanId = e.id">
+          <td x-text="e.id"></td>
+          <td x-text="e.pid"></td>
+          <td x-text="e.proc_start ? new Date(e.proc_start*1000).toISOString().replace('T',' ').slice(0,19) : '?'"></td>
+          <td x-text="e.reason"></td>
+        </tr>
+      </template>
+    </tbody>
+  </table>
+
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="text-muted small">ⓘ Không có nút "xoá tất cả" ở tab này — theo thiết kế.</span>
+    <button class="btn btn-sm btn-danger" :disabled="!selectedOrphanId" @click="deleteSelectedOrphan()">
+      Xoá file này…
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================ Settings -->
+<div class="p-3 overflow-auto" style="height: calc(100vh - 130px);" x-show="activeTab === 'settings'">
+  <h4 class="mb-3">Cài đặt</h4>
+  <div class="row">
+    <div class="col-md-6">
+      <h6 class="fw-bold">Backup</h6>
+      <p class="text-muted small">Mọi thao tác xoá đều nén .zip + manifest sha256 trước.</p>
+      <label class="form-label small text-muted">Thư mục lưu backup</label>
+      <div class="input-group input-group-sm mb-2">
+        <input type="text" class="form-control" x-model="settings.backup_dir">
+        <button class="btn btn-ct-neutral" @click="browseBackupDir()">Chọn thư mục…</button>
+      </div>
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" role="switch"
+               x-model="settings.auto_prune_backups" id="autoPrune">
+        <label class="form-check-label" for="autoPrune">
+          Tự xoá backup cũ
+          <div class="small text-muted">Xoá bản backup quá hạn khi khởi động app</div>
+        </label>
+      </div>
+      <label class="form-label small text-muted">Giữ backup trong (ngày)</label>
+      <input type="number" min="0" class="form-control form-control-sm mb-2" style="width:100px"
+             x-model.number="settings.retention_days">
+    </div>
+    <div class="col-md-6">
+      <h6 class="fw-bold">Phát hiện session</h6>
+      <p class="text-muted small">Quyết định badge rủi ro và mục nào cần xác nhận.</p>
+      <label class="form-label small text-muted">Ngưỡng "có thể đang active" (phút)</label>
+      <input type="number" min="0" class="form-control form-control-sm mb-2" style="width:100px"
+             x-model.number="settings.maybe_active_minutes">
+      <label class="form-label small text-muted">Ngưỡng "mới dùng" (giờ)</label>
+      <input type="number" min="0" class="form-control form-control-sm mb-2" style="width:100px"
+             x-model.number="settings.recent_hours">
+      <p class="small text-muted mt-2">
+        Session có PID đang chạy (create_time khớp procStart) luôn bị bỏ qua — không có cài đặt
+        nào tắt được.
+      </p>
+    </div>
+  </div>
+  <div class="d-flex justify-content-end align-items-center gap-2 mt-3">
+    <span :class="settingsStatusOk ? 'text-success' : 'text-danger'" x-text="settingsStatus"></span>
+    <button class="btn btn-sm btn-primary" @click="saveSettings()">Lưu</button>
+  </div>
+
+  <hr class="my-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="fw-bold mb-0">Khôi phục từ backup</h6>
+    <button class="btn btn-sm btn-ct-neutral" @click="rescanBackups()">⟳ Quét lại</button>
+  </div>
+  <p class="text-muted small">Đọc lại đúng file/thư mục đã bị xoá từ một bản backup .zip. Cảnh báo nếu file đích đã tồn tại — không tự ghi đè khi chưa xác nhận.</p>
+  <template x-if="backups.length">
+    <table class="table table-sm ct-table">
+      <thead>
+        <tr><th>Thời gian</th><th>Label</th><th>Chế độ</th><th>Số mục</th><th>Dung lượng</th><th></th></tr>
+      </thead>
+      <tbody>
+        <template x-for="b in backups" :key="b.id">
+          <tr>
+            <td x-text="new Date(b.created_at*1000).toISOString().replace('T',' ').slice(0,19)"></td>
+            <td x-text="b.label"></td>
+            <td x-text="b.mode"></td>
+            <td x-text="b.target_count"></td>
+            <td x-text="b.size_human"></td>
+            <td>
+              <button class="btn btn-sm btn-outline-primary" @click="startRestorePreview(b.id)">
+                Xem trước & khôi phục
+              </button>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </template>
+  <p class="text-muted small" x-show="!backups.length">Chưa có backup nào trong thư mục cấu hình ở trên.</p>
+</div>
+
+<!-- =============================================================== Status -->
+<div class="ct-statusbar d-flex justify-content-between">
+  <span x-text="statusLeft"></span>
+  <span x-text="statusRight"></span>
+</div>
+
+<!-- ======================================================= Delete-all pre-check -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Xoá tất cả session của project?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Đây là thao tác xoá diện rộng nhất. Mọi mục vẫn đi qua backup và kiểm tra active như bình thường.</p>
+        <div class="form-check" x-show="project && project.worktrees && project.worktrees.length">
+          <input class="form-check-input" type="checkbox" id="includeWorktrees" x-model="includeWtChecked">
+          <label class="form-check-label" for="includeWorktrees">
+            Áp dụng cho cả <span x-text="project?.worktrees?.length"></span> worktree con
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" data-bs-dismiss="modal">Huỷ</button>
+        <button class="btn btn-primary" data-bs-dismiss="modal"
+                @click="deleteAllProject(includeWtChecked)">Tiếp tục xem trước</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= Dry-run preview -->
+<div class="modal fade" id="previewModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="preview">
+      <div class="modal-header">
+        <h5 class="modal-title">Xem trước khi xoá</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" x-show="preview">
+        <p class="text-muted small" x-show="preview">
+          Dry-run · <span x-text="preview?.label"></span> ·
+          <span x-text="(preview?.will_delete.length||0) + previewConfirmedIds.length"></span> mục được chọn ·
+          chưa có gì bị xoá
+        </p>
+
+        <template x-if="preview?.will_delete?.length">
+          <div class="mb-3">
+            <h6 class="text-success">Sẽ xoá</h6>
+            <div class="small" x-text="`${preview.will_delete.length} mục · ${humanSize(preview.will_delete.reduce((n,t)=>n+t.size_bytes,0))}`"></div>
+            <ul class="list-unstyled mt-1">
+              <template x-for="t in preview.will_delete" :key="t.id">
+                <li class="d-flex justify-content-between border-bottom py-1">
+                  <span x-text="t.label"></span><span class="text-muted" x-text="t.size_human"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <template x-if="preview?.needs_confirmation?.length">
+          <div class="mb-3">
+            <h6 class="text-warning">Cần xác nhận từng mục</h6>
+            <div class="small text-muted mb-1">maybe_active · chỉ xoá mục bạn tick</div>
+            <template x-for="t in preview.needs_confirmation" :key="t.id">
+              <div class="form-check d-flex justify-content-between border-bottom py-1">
+                <span>
+                  <input class="form-check-input me-2" type="checkbox"
+                         :checked="!!previewChecked[t.id]"
+                         @change="previewChecked[t.id] = !previewChecked[t.id]">
+                  <label x-text="t.label"></label>
+                </span>
+                <span class="text-muted" x-text="t.size_human"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="preview?.skipped?.length">
+          <div class="mb-3">
+            <h6 class="text-danger">Sẽ bỏ qua</h6>
+            <div class="small text-muted mb-1">active · không có cách ép xoá</div>
+            <template x-for="row in preview.skipped" :key="row.target.id">
+              <div class="d-flex justify-content-between border-bottom py-1">
+                <span x-text="row.target.label"></span>
+                <span class="text-muted small" x-text="row.reason"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div x-show="preview?.typed_name_required" x-data="{ copied: false }">
+          <label class="form-label small">
+            Nhập đúng tên project <code x-text="preview?.typed_name_required"></code>
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline"
+                    title="Sao chép tên project"
+                    @click="navigator.clipboard.writeText(preview?.typed_name_required || ''); copied = true; setTimeout(() => copied = false, 1500)"
+                    x-text="copied ? 'Đã copy' : 'Sao chép'"></button>
+            để bật nút Xoá
+          </label>
+          <input type="text" class="form-control form-control-sm" x-model="typedName"
+                 :placeholder="preview?.typed_name_required">
+          <div class="small text-muted mt-1">Không có đường tắt bỏ qua bước kiểm tra active.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" data-bs-dismiss="modal">Huỷ</button>
+        <button class="btn btn-danger" :disabled="!previewCanConfirm" @click="confirmDelete()">
+          <span x-text="`Backup & xoá ${(preview?.will_delete.length||0) + previewConfirmedIds.length} mục (${humanSize(previewConfirmedSizeBytes)})`"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================= Progress -->
+<div class="modal fade" id="progressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Đang xoá</h5>
+      </div>
+      <div class="modal-body">
+        <p x-text="progress ? `${progress.phase === 'backup' ? 'Đang backup' : progress.phase === 'verify' ? 'Đang xác thực backup' : 'Đang xoá'} ${progress.done}/${progress.total} ${progress.current||''}` : 'Đang chuẩn bị…'"></p>
+        <div class="progress">
+          <div class="progress-bar" role="progressbar"
+               :style="`width: ${progress && progress.total ? (progress.done/progress.total*100) : 0}%`"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" @click="cancelDelete()">Huỷ (dừng sau mục hiện tại)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ Result -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="result">
+      <div class="modal-header">
+        <h5 class="modal-title">Kết quả</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" x-show="result?.error" x-text="result?.error"></div>
+        <template x-if="result && !result.error">
+          <div>
+            <p x-text="`Đã xoá ${result.deleted.length} mục, giải phóng ${result.freed_human}.`"></p>
+            <p class="text-warning" x-show="result.cancelled">Đã dừng theo yêu cầu — các mục còn lại chưa bị động tới.</p>
+            <div x-show="result.backup_path" class="mb-2">
+              <label class="form-label small text-muted">Backup</label>
+              <input type="text" class="form-control form-control-sm" readonly :value="result.backup_path">
+            </div>
+            <template x-if="result.skipped?.length">
+              <div class="mb-2">
+                <h6 class="text-danger">Đã bỏ qua</h6>
+                <template x-for="row in result.skipped" :key="row.target.id">
+                  <div class="small" x-text="`• ${row.target.label} — ${row.reason}`"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="result.needs_confirmation?.length">
+              <div class="mb-2">
+                <h6 class="text-warning">Không xoá (chưa xác nhận)</h6>
+                <template x-for="t in result.needs_confirmation" :key="t.id">
+                  <div class="small" x-text="`• ${t.label}`"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="result.failed_files?.length">
+              <div>
+                <h6 class="text-danger" x-text="`${result.failed_files.length} file không xoá được`"></h6>
+                <template x-for="f in result.failed_files.slice(0,50)">
+                  <div class="small" x-text="`• ${f.path}: ${f.error}`"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= Restore preview -->
+<div class="modal fade" id="restorePreviewModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="restorePreview">
+      <div class="modal-header">
+        <h5 class="modal-title">Xem trước khi khôi phục</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" x-show="restorePreview">
+        <p class="text-muted small">
+          <span x-text="restorePreview?.backup.label"></span> ·
+          <span x-text="restorePreview?.backup.mode"></span> · chưa có gì được ghi
+        </p>
+
+        <template x-if="restorePreview?.will_restore?.length">
+          <div class="mb-3">
+            <h6 class="text-success">Sẽ khôi phục</h6>
+            <ul class="list-unstyled mt-1">
+              <template x-for="i in restorePreview.will_restore" :key="i.id">
+                <li class="d-flex justify-content-between border-bottom py-1">
+                  <span x-text="i.label"></span>
+                  <span class="text-muted small" x-text="`${i.file_count} file · ${i.size_human}`"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <template x-if="restorePreview?.needs_confirmation?.length">
+          <div class="mb-3">
+            <h6 class="text-warning">Cần xác nhận ghi đè</h6>
+            <div class="small text-muted mb-1">File đích đã tồn tại — chỉ ghi đè mục bạn tick</div>
+            <template x-for="i in restorePreview.needs_confirmation" :key="i.id">
+              <div class="form-check d-flex justify-content-between border-bottom py-1">
+                <span>
+                  <input class="form-check-input me-2" type="checkbox"
+                         :checked="!!restoreChecked[i.id]"
+                         @change="restoreChecked[i.id] = !restoreChecked[i.id]">
+                  <label x-text="i.label"></label>
+                </span>
+                <span class="text-muted small" x-text="`${i.file_count} file · ${i.size_human}`"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="restorePreview?.refused?.length">
+          <div class="mb-3">
+            <h6 class="text-danger">Sẽ bỏ qua</h6>
+            <template x-for="row in restorePreview.refused" :key="row.item.id">
+              <div class="d-flex justify-content-between border-bottom py-1">
+                <span x-text="row.item.label"></span>
+                <span class="text-muted small" x-text="row.reason"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" data-bs-dismiss="modal">Huỷ</button>
+        <button class="btn btn-primary" :disabled="!restoreCanConfirm" @click="confirmRestore()">
+          Khôi phục
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================== Restore progress -->
+<div class="modal fade" id="restoreProgressModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Đang khôi phục</h5>
+      </div>
+      <div class="modal-body">
+        <p x-text="restoreProgress ? `Đang khôi phục ${restoreProgress.done}/${restoreProgress.total} ${restoreProgress.current||''}` : 'Đang chuẩn bị…'"></p>
+        <div class="progress">
+          <div class="progress-bar" role="progressbar"
+               :style="`width: ${restoreProgress && restoreProgress.total ? (restoreProgress.done/restoreProgress.total*100) : 0}%`"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ct-neutral" @click="cancelRestore()">Huỷ (dừng sau mục hiện tại)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================= Restore result -->
+<div class="modal fade" id="restoreResultModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" x-show="restoreResult">
+      <div class="modal-header">
+        <h5 class="modal-title">Kết quả khôi phục</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger" x-show="restoreResult?.error" x-text="restoreResult?.error"></div>
+        <template x-if="restoreResult && !restoreResult.error">
+          <div>
+            <p x-text="`Đã khôi phục ${restoreResult.restored.length} mục.`"></p>
+            <p class="text-warning" x-show="restoreResult.cancelled">Đã dừng theo yêu cầu — các mục còn lại chưa được khôi phục.</p>
+            <template x-if="restoreResult.skipped?.length">
+              <div class="mb-2">
+                <h6 class="text-danger">Đã bỏ qua</h6>
+                <template x-for="row in restoreResult.skipped" :key="row.item.id">
+                  <div class="small" x-text="`• ${row.item.label} — ${row.reason}`"></div>
+                </template>
+              </div>
+            </template>
+            <template x-if="restoreResult.failed_files?.length">
+              <div>
+                <h6 class="text-danger" x-text="`${restoreResult.failed_files.length} mục lỗi`"></h6>
+                <template x-for="f in restoreResult.failed_files.slice(0,50)">
+                  <div class="small" x-text="`• ${f.path}: ${f.error}`"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="app.js"></script>
+<script src="vendor/alpine.min.js" defer></script>
+</body>
+</html>

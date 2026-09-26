@@ -16,7 +16,11 @@ free-hand, so format stays consistent.
 - Frontmatter: `type`, `complexity`, `status`, `related_issues`,
   `related_prs`, `estimated_hours` — keep `status` current
   (`planning` → `in-progress` → `done`) as work progresses rather than only
-  setting it once.
+  setting it once. If a whole plan gets replaced by a later rewrite rather
+  than finished (e.g. the ttkbootstrap UI plan when pywebview replaced it),
+  set `status: superseded` and leave the file in place as a historical work
+  log — don't delete it, and don't renumber its task IDs even though they're
+  no longer active.
 - Body sections: Phân tích/Bối cảnh, Approach/Strategy, Công việc cần thực
   hiện (Todo, as checkboxes with task IDs like `T01`), Risks & Unknowns,
   Success Criteria, Questions/Dependencies.

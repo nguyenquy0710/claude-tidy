@@ -115,13 +115,13 @@ def scan_projects(paths: ClaudePaths) -> list[Project]:
         if not entry.is_dir() or is_link(entry):
             continue
         try:
-            projects.append(_scan_project(entry, paths))
+            projects.append(scan_project(entry, paths))
         except OSError as exc:
             log.warning("Skipping unreadable project dir %s: %s", entry, exc)
     return projects
 
 
-def _scan_project(project_dir: Path, paths: ClaudePaths) -> Project:
+def scan_project(project_dir: Path, paths: ClaudePaths) -> Project:
     by_id: dict[str, list[Path]] = {}
     for child in project_dir.iterdir():
         sid = _session_id_of(child.name)

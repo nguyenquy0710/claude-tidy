@@ -7,12 +7,13 @@ first, it applies to everything under here.
 ## Layout
 
 - `core/` — filesystem scanning, activity detection, risk classification,
-  backup, and the single deletion pipeline. No `tkinter`/`ttkbootstrap` import
-  belongs in this package; it must stay unit-testable without a GUI. See
+  backup, and the single deletion pipeline. No UI framework import belongs
+  in this package; it must stay unit-testable without a GUI. See
   [core/CLAUDE.md](core/CLAUDE.md).
-- `ui/` — ttkbootstrap views and the one delete-flow entry point. See [ui/CLAUDE.md](ui/CLAUDE.md).
-- `__main__.py` — `python -m claude_tidy` entry point; just wires logging and
-  calls `ui.app.run()`.
+- `webui/` — pywebview + HTML/Bootstrap 5, the UI. See
+  [webui/CLAUDE.md](webui/CLAUDE.md).
+- `__main__.py` — `python -m claude_tidy` entry point; wires logging and
+  calls `webui.app.run()`.
 
 ## Cross-cutting conventions
 
@@ -26,8 +27,11 @@ first, it applies to everything under here.
 - Vietnamese is the UI's user-facing language (labels, dialogs, status text)
   — keep new UI strings in Vietnamese to match the existing views. Code
   identifiers, docstrings, and comments stay in English.
-- `ui/` was rewritten from Flet to ttkbootstrap on 2026-09-25 — see
-  [plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md).
-  If you find a stray `flet` import or reference, it's a leftover to remove,
-  not a second UI to maintain (root CLAUDE.md rule: one deletion pipeline,
-  one UI).
+- The UI went through two rewrites in one day (2026-09-25): Flet →
+  ttkbootstrap ([plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](../plans/2026-09-25-ttkbootstrap-ui-migration-planning.md),
+  now superseded) → pywebview
+  ([plans/2026-09-25-pywebview-ui-migration-planning.md](../plans/2026-09-25-pywebview-ui-migration-planning.md),
+  current). `claude_tidy/ui/` (ttkbootstrap) was deleted outright in task T40
+  once `webui/` reached parity — this repo keeps exactly one UI at a time
+  (root CLAUDE.md rule: one deletion pipeline, one UI), never two in
+  parallel long-term.

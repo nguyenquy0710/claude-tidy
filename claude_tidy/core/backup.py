@@ -49,6 +49,7 @@ def create_backup(
     mode: str,
     clock: Callable[[], float] = time.time,
     on_target_done: Callable[[int], None] | None = None,
+    on_verify_progress: Callable[[int, int], None] | None = None,
 ) -> BackupOutcome:
     backup_dir.mkdir(parents=True, exist_ok=True)
     needed = sum(t.size_bytes for t in targets) * SPACE_MARGIN + SPACE_RESERVE_BYTES
@@ -76,7 +77,7 @@ def create_backup(
                 if on_target_done:
                     on_target_done(i + 1)
             zf.writestr(MANIFEST_NAME, json.dumps(manifest, ensure_ascii=False, indent=2))
-        _verify(partial, manifest)
+        _verify(partial, manifest, on_verify_progress)
         partial.replace(zip_path)
     except BaseException:
         partial.unlink(missing_ok=True)
@@ -168,22 +169,33 @@ def _write_file(zf: zipfile.ZipFile, src: Path, arcname: str) -> tuple[str, int]
     return h.hexdigest(), size
 
 
-def _verify(zip_path: Path, manifest: dict) -> None:
+def _verify(
+    zip_path: Path,
+    manifest: dict,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> None:
+    # Re-hashes every file instead of trusting testzip()'s CRC32 alone — this is
+    # the check "deletion only proceeds if the backup verifies" (root CLAUDE.md)
+    # relies on, so it must stay a full re-read. It's also the slowest part of a
+    # large delete (a second full read pass), so it reports its own progress
+    # rather than leaving the UI showing a stale "backup done" count while it runs.
+    files = [f for t in manifest["targets"] if t["status"] == "ok" for f in t["files"]]
+    total = len(files)
+    report = on_progress or (lambda _done, _total: None)
+    report(0, total)
     try:
         with zipfile.ZipFile(zip_path) as zf:
             bad = zf.testzip()
             if bad is not None:
                 raise BackupError(f"corrupt entry in backup: {bad}")
-            for target in manifest["targets"]:
-                if target["status"] != "ok":
-                    continue
-                for f in target["files"]:
-                    h = hashlib.sha256()
-                    with zf.open(f["arcname"]) as fin:
-                        while chunk := fin.read(CHUNK):
-                            h.update(chunk)
-                    if h.hexdigest() != f["sha256"]:
-                        raise BackupError(f"checksum mismatch for {f['path']}")
+            for done, f in enumerate(files):
+                h = hashlib.sha256()
+                with zf.open(f["arcname"]) as fin:
+                    while chunk := fin.read(CHUNK):
+                        h.update(chunk)
+                if h.hexdigest() != f["sha256"]:
+                    raise BackupError(f"checksum mismatch for {f['path']}")
+                report(done + 1, total)
     except (zipfile.BadZipFile, KeyError, OSError) as exc:
         raise BackupError(f"backup verification failed: {exc}") from exc
 

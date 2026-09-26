@@ -47,6 +47,31 @@ per-test fixture.
 and returns `False` if neither is supported on the current machine/permissions
 — guard tests that depend on the link actually existing.
 
+## `test_webui_api.py`
+
+Exercises the `webui/api.py` trust boundary described in
+[claude_tidy/webui/CLAUDE.md](../claude_tidy/webui/CLAUDE.md) — this is where
+a regression would let a buggy/compromised frontend delete something it
+shouldn't, so treat these as safety tests, not ordinary API tests:
+
+- `test_active_session_is_never_deleted_even_if_confirmed` — proves
+  `execute_delete()` still refuses an `ACTIVE` target even if the frontend
+  passes its id back in `confirmed_ids`.
+- `test_token_is_one_time_use` — a `preview_delete` token can't be replayed.
+- `test_delete_all_requires_matching_typed_name` — the typed-project-name
+  check happens server-side, not just as a disabled JS button.
+- `test_concurrent_delete_is_rejected` — uses a slow-fake `execute()`
+  (monkeypatch) to prove a second `execute_delete()` call is rejected *while
+  the first is still running*, not just at the exact instant of the first
+  call. If you touch `Api._deleting`/`Api._delete_lock`, this is the test
+  that catches holding the lock only around the dispatch instead of the
+  whole job.
+
+Use the `app`/`app_state`/`fake` fixtures already defined in this file's
+`conftest.py`-adjacent fixtures (`Api(app_state, notify=...)` with an
+in-memory `events` list standing in for `evaluate_js`) rather than spinning
+up a real `pywebview` window.
+
 ## What to add when extending `core/`
 
 - New activity states or process-probe edge cases → extend `FakeProbe`'s

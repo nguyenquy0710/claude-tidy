@@ -14,7 +14,7 @@
   process, corrupt/missing `sessions/*.json`, and denylisted paths
   (`memory/`, `settings*.json`, `.credentials.json`) surviving a "delete all."
 - No network calls, no prompts, no interactive confirmation in unit tests —
-  those belong in manual/UI smoke testing (`T16`).
+  those belong in E2E/smoke testing (`T42`).
 
 ## Comment cleanup rule
 

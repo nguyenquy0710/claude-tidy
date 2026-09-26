@@ -145,3 +145,37 @@ class DeleteResult:
     @property
     def freed_bytes(self) -> int:
         return sum(t.size_bytes for t in self.deleted)
+
+
+@dataclass
+class BackupFile:
+    zip_path: Path
+    created_at: float
+    mode: str
+    label: str
+    target_count: int
+    size_bytes: int
+
+
+@dataclass
+class RestoreItem:
+    id: str
+    label: str
+    file_count: int
+    size_bytes: int
+
+
+@dataclass
+class RestorePreview:
+    backup: BackupFile
+    will_restore: list[RestoreItem] = field(default_factory=list)
+    needs_confirmation: list[RestoreItem] = field(default_factory=list)
+    refused: list[tuple[RestoreItem, str]] = field(default_factory=list)
+
+
+@dataclass
+class RestoreResult:
+    restored: list[RestoreItem] = field(default_factory=list)
+    skipped: list[tuple[RestoreItem, str]] = field(default_factory=list)
+    failed_files: list[tuple[Path, str]] = field(default_factory=list)
+    cancelled: bool = False

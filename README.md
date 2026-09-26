@@ -87,7 +87,9 @@ Nếu cần lưu lại làm mốc tham chiếu khi báo lỗi môi trường (kh
 
 Tạo ra `dist/claude-tidy/claude-tidy.exe` (dùng `--onedir`, không phải
 `--onefile` — xem lý do trong
-[plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](plans/2026-09-25-ttkbootstrap-ui-migration-planning.md)).
+[plans/2026-09-25-ttkbootstrap-ui-migration-planning.md](plans/2026-09-25-ttkbootstrap-ui-migration-planning.md),
+đo lại và giữ nguyên kết luận ở
+[plans/2026-09-25-pywebview-ui-migration-planning.md](plans/2026-09-25-pywebview-ui-migration-planning.md)).
 
 ## Phát triển
 
@@ -101,9 +103,10 @@ Toàn bộ test chạy trên cây `~/.claude` giả lập
 
 ## Tech stack
 
-Python 3.11+, [ttkbootstrap](https://ttkbootstrap.readthedocs.io/) (Tkinter),
-`psutil` để phát hiện process, PyInstaller để đóng gói, `pytest` + `ruff`
-để test/lint.
+Python 3.11+, **pywebview** + HTML/Bootstrap 5 (UI đang triển khai, xem
+[Trạng thái](#trạng-thái)) — thay cho ttkbootstrap (Tkinter), vốn từng thay
+cho Flet. `psutil` để phát hiện process, PyInstaller để đóng gói, `pytest` +
+`ruff` để test/lint.
 
 ## Cấu trúc dự án & tài liệu
 
@@ -116,9 +119,14 @@ Product spec và execution plan nằm trong [docs/](docs/CLAUDE.md) và
 
 ## Trạng thái
 
-Core, UI, và đóng gói của bản MVP đã hoàn thành. Còn thiếu: smoke test trên
-một máy/VM thật sự sạch (mới chỉ chạy được trên máy dev), và về lâu dài là
-Phase 2 (restore từ backup, tự động dọn theo lịch, system tray).
+Core và đóng gói của bản MVP đã hoàn thành. **UI đang trong lần đổi thứ hai:**
+Flet → ttkbootstrap (xong, nay đã bị thay) → **pywebview + Bootstrap 5**
+(đang làm, xem
+[plans/2026-09-25-pywebview-ui-migration-planning.md](plans/2026-09-25-pywebview-ui-migration-planning.md)).
+Bản chạy được hiện tại vẫn là ttkbootstrap cho tới khi bản pywebview đạt
+tương đương. Còn thiếu: smoke test trên một máy/VM thật sự sạch (mới chỉ
+chạy được trên máy dev), và về lâu dài là Phase 2 (restore từ backup, tự
+động dọn theo lịch, system tray).
 
 ## Giấy phép
 

@@ -90,10 +90,17 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 ### M1 — Nền tảng
 
-- [~] **T01 — Setup project & toolchain** (Gốc 1.5 → **2.5d**) · DevOps · Thấp
+- [~] ~~**T01 — Setup project & toolchain**~~ 🚫 **SKIP (2026-09-26)** (Gốc 1.5 → **2.5d**) · DevOps · Thấp
   - Khởi tạo `pyproject.toml` (Python 3.11+, flet, psutil, send2trash, pytest), ruff, cấu trúc package
   - Cài Flutter SDK + VS C++ workload, chạy thử `flet build windows` với app "hello" để phát hiện sớm lỗi toolchain
   - Tăng 1d vì build Flet Windows lần đầu thường vướng môi trường
+  - ⚠️ **Phần dở (`flet build windows`) đã lỗi thời và đã bị bỏ (skip) theo
+    quyết định chủ dự án ngày 2026-09-26 — Jira QUYIT-742 chuyển sang
+    Rejected**, cùng tiền lệ với T22–T32 khi ttkbootstrap bị thay bởi
+    pywebview. Toolchain Flet không còn dùng; đóng gói `.exe` giờ qua
+    PyInstaller, xem T33/T41 ở
+    [2026-09-25-pywebview-ui-migration-planning.md](2026-09-25-pywebview-ui-migration-planning.md).
+    Nội dung gốc phía trên giữ nguyên làm nhật ký, không viết lại theo hồi tưởng.
 - [x] **T02 — Path resolver & Settings model** (**0.5d**, tách từ Settings) · Backend · Thấp
   - Resolve các root dir, cho phép override qua biến môi trường/tham số để test
 - [x] **T03 — Test fixtures `~/.claude` giả lập** (**1.5d**, mới) · QA · Trung bình
@@ -152,8 +159,14 @@ Effort tính theo person-days (1 senior dev). Cột "Gốc" là estimate trong t
 
 ### M5 — Đóng gói & QA
 
-- [ ] **T16 — Packaging & smoke test** (gộp trong buffer QA) · DevOps
+- [ ] ~~**T16 — Packaging & smoke test**~~ 🚫 **SKIP (2026-09-26)** (gộp trong buffer QA) · DevOps
   - `flet build windows`, chạy `.exe` trên máy/VM sạch, kiểm tra với dữ liệu `~/.claude` thật (đã backup trước)
+  - ⚠️ **Đã lỗi thời và đã bị bỏ (skip) theo quyết định chủ dự án ngày
+    2026-09-26 — Jira QUYIT-757 chuyển sang Rejected.** Nội dung (build + chạy
+    thử `.exe`) được thay bằng T41 (đóng gói PyInstaller, đã Done) + T42
+    (smoke test, đã xác nhận hoàn thành qua test thủ công ngày 2026-09-26) ở
+    [2026-09-25-pywebview-ui-migration-planning.md](2026-09-25-pywebview-ui-migration-planning.md).
+    Giữ nguyên nội dung gốc phía trên làm nhật ký.
 
 ### Bổ sung sau khi chốt câu hỏi (2026-09-25)
 
@@ -171,11 +184,32 @@ Task ID mới đánh tiếp từ T20 để không làm lệch ID đã có.
 
 ### Phase 2 — Post-MVP
 
-- [ ] **T17 — Restore từ backup** (**1.5d**) · Quan trọng · phụ thuộc T09, T11
+- [x] **T17 — Restore từ backup** (**1.5d**) · Quan trọng · phụ thuộc T09, T11 — **2026-09-26**
   - Đọc manifest, cảnh báo nếu file đích đã tồn tại
-- [ ] **T18 — Scheduled Auto-Clean** (**2d**) · Nice-to-have
+  - `core/restore.py`: `list_backups()` quét trực tiếp thư mục backup (đọc
+    `manifest.json` từng zip, không cần index riêng); `preview_restore()` /
+    `restore()` re-validate lại `roots` gốc của từng target qua
+    `scanner.check_deletable()` trước khi ghi — chặn một zip bị chỉnh tay/giả
+    mạo dùng để ghi file ra ngoài vùng quản lý. Chỉ ghi đè khi người dùng xác
+    nhận từng mục có file đích đã tồn tại (không bao giờ ghi đè một phần).
+    Mỗi lần restore ghi 1 dòng vào `oplog` giống `deleter.execute()`.
+  - `webui/api.py`: `list_backups()` / `preview_restore(backup_id)` /
+    `execute_restore(token, confirmed_ids)` — cùng khuôn token một-lần-dùng
+    như luồng xoá; `backup_id` chỉ là tên file, resolve qua `_resolve_backup`
+    (chặn path traversal bằng `Path.relative_to()`).
+  - UI: mục "Khôi phục từ backup" trong tab Cài đặt (bảng backup + modal xem
+    trước 3 nhóm sẽ khôi phục/cần xác nhận/bị từ chối + modal tiến độ + modal
+    kết quả). Verify bằng Playwright với `window.pywebview.api` giả (luồng
+    list → preview → confirm → progress → result, không lỗi console).
+  - 92 test pass (`core/test_restore.py` 10 test mới + 6 test API mới trong
+    `test_webui_api.py`), `ruff` sạch. Jira QUYIT-758 chuyển Done.
+- [ ] ~~**T18 — Scheduled Auto-Clean**~~ 🚫 **SKIP (2026-09-26)** (**2d**) · Nice-to-have
   - Chỉ xoá bundle `safe`, tái sử dụng pipeline T10
-- [ ] **T19 — System Tray** (**1.5d**) · Nice-to-have
+  - ⚠️ **Bỏ (skip) theo quyết định chủ dự án ngày 2026-09-26 — Jira QUYIT-759
+    chuyển sang Rejected.** Không nằm trong scope hiện tại của claude-tidy.
+- [ ] ~~**T19 — System Tray**~~ 🚫 **SKIP (2026-09-26)** (**1.5d**) · Nice-to-have
+  - ⚠️ **Bỏ (skip) theo quyết định chủ dự án ngày 2026-09-26 — Jira QUYIT-760
+    chuyển sang Rejected.** Không nằm trong scope hiện tại của claude-tidy.
 
 ### Jira (tạo 2026-09-25)
 
@@ -211,6 +245,10 @@ Epic [QUYIT-741](https://nhquydev.atlassian.net/browse/QUYIT-741). Tất cả ta
 
 Chênh lệch v1 (+4d): toolchain Flet (+1d), test fixtures (+1.5d), operation log (+0.5d), màn cache/temp (+1.5d), trừ phần Settings đã tách (−0.5d).
 Chênh lệch v2 (+2.5d): dọn index mồ côi T20 (+1d), nhóm worktree T21 (+1.5d). Màn cache/temp T15 đã có trong v1 nên không đổi.
+
+⚠️ **Cập nhật 2026-09-26:** T18 (2d) và T19 (1.5d) đã bị bỏ (skip) theo quyết
+định chủ dự án — Phase 2 trên thực tế chỉ còn T17 (1.5d), không phải 5d như
+bảng trên. Giữ nguyên số liệu gốc trong bảng làm nhật ký, không viết lại.
 
 **Chưa bao gồm:** macOS/Linux, code-sign/installer, auto-update, tài liệu hướng dẫn người dùng, hỗ trợ các version Claude Code có cấu trúc `~/.claude` khác trong tương lai.
 
