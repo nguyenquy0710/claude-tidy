@@ -72,6 +72,16 @@ body {
   text-transform: uppercase;
 }
 
+.ct-sidebar-refresh {
+  color: var(--ct-muted);
+  text-decoration: none;
+  line-height: 1;
+}
+
+.ct-sidebar-refresh:hover:not(:disabled) {
+  color: var(--ct-accent);
+}
+
 .ct-project-row {
   cursor: pointer;
   padding: .35rem .5rem;

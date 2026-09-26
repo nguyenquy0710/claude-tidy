@@ -16,7 +16,7 @@ package removed in task T40 — see
 |---|---|
 | `app.py` | `run()` — checks the WebView2 Runtime registry key before doing anything else (missing → `MessageBoxW`, not a Tk dialog — this package imports no `tkinter`), then `webview.create_window(..., js_api=Api(...))` + `webview.start(gui="edgechromium")`. Always force `gui="edgechromium"`; letting pywebview fall back to MSHTML/IE breaks Bootstrap 5. |
 | `state.py` | `AppState` — loads `ClaudePaths`/`Settings` once at startup; `new_detector()` builds a fresh `ActivityDetector` per call (state can go stale across a scan, don't cache one). `probe` is injectable so tests can pass a `FakeProbe` instead of hitting real `psutil`. |
-| `api.py` | `Api` — the entire `js_api` surface. Every method returns a JSON-safe dict via `dto.py`. |
+| `api.py` | `Api` — the entire `js_api` surface. Every method returns a JSON-safe dict via `dto.py`. Includes read/refresh helpers alongside the delete pair: `rescan_project(project_id)` re-scans one project directory only (`core.scanner.scan_project`, the same function `scan_projects` calls per-entry) instead of the whole `~/.claude/projects` tree, for a cheap right-click "refresh"; `open_project_folder(project_id)` resolves the id server-side same as everything else and calls `os.startfile(cwd)` — read-only, so it doesn't go through `preview_delete`/`execute_delete`, but still never trusts a path coming from JS. |
 | `dto.py` | `core/models.py` dataclasses → JSON-safe dicts (paths become display strings, enums become `.value`). |
 | `jobs.py` | `JobRunner` — runs scan/delete work on a background thread, pushes `job_progress`/`job_done`/`job_error` events through a plain `notify(name, payload)` callable (decoupled from `evaluate_js` so it's testable without a window). |
 | `static/index.html` + `static/app.js` + `static/app.css` | Alpine.js `app()` component bound to the 4 tabs (Sessions/Cache/Index/Settings) and the shared delete-flow modals. `static/vendor/` has Bootstrap 5 + Alpine.js **downloaded locally**, never CDN — the app must run offline and package with PyInstaller. |
@@ -97,6 +97,15 @@ or written directly in JS. Keep both sides in sync when a field is added —
   caught by Playwright screenshot verification, not by reading the code: the
   Sessions-tab wrapper and the Claude-Desktop-running alert in Cache/Temp —
   see both in `static/index.html`.
+- The project sidebar's right-click context menu (`app.js`'s `projectMenu`
+  state, `openProjectMenu`/`openProjectFolder`/`copyProjectPath`/
+  `rescanProjectMenu`/`deleteAllProjectMenu`) is plain Alpine state, not a
+  Bootstrap component — it's positioned at the click coordinates and closed by
+  setting `projectMenu = null`. `rescanProjectMenu` patches just the one
+  changed project back into `projects`/`worktrees` in place
+  (`replaceProjectEverywhere`) rather than re-fetching the whole list; keep
+  that pattern for any future per-item refresh instead of calling
+  `list_projects()` again.
 - Index mồ côi has **no "select all"**, only per-row single selection — a
   deliberate carry-over from the ttkbootstrap UI (roadmap decision 6.5: each
   orphan file is confirmed individually, never bulk).

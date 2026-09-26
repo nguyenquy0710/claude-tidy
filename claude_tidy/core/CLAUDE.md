@@ -86,6 +86,13 @@ gone, the safe default is "maybe still running," not "safe to delete."
   alone rather than deleted unbacked-up.
 - A target that can't be fully read (`OSError` during backup) is marked
   `unreadable` and excluded from `captured`, so it is never deleted.
+- `_verify()` re-hashes every backed-up file from inside the zip rather than
+  trusting `testzip()`'s CRC32 alone — that full re-read is what "deletion
+  only proceeds if the backup verifies" actually rests on. It's also the
+  slowest part of a large delete, so it reports its own progress via
+  `on_verify_progress` — `Progress.phase` is `"backup"` → `"verify"` →
+  `"delete"`, not just the first and third; a UI reading `phase` needs to
+  handle all three.
 
 ## Adding a test for this package
 
