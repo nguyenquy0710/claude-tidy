@@ -105,6 +105,7 @@ def _backup_and_delete(plan, targets, backup_dir, result, progress, cancel, cloc
         backup = create_backup(
             targets, backup_dir, plan.label, plan.mode.value, clock,
             on_target_done=lambda n: progress(Progress("backup", n, total)),
+            on_verify_progress=lambda n, vtotal: progress(Progress("verify", n, vtotal)),
         )
     except (BackupError, OSError) as exc:
         result.error = f"backup failed, nothing was deleted: {exc}"

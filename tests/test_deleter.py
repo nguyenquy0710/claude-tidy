@@ -105,7 +105,7 @@ def test_backup_failure_deletes_nothing(fake, detector, alpha, monkeypatch):
 
 
 def test_verification_failure_deletes_nothing(fake, detector, alpha, monkeypatch):
-    def broken_verify(_zip, _manifest):
+    def broken_verify(_zip, _manifest, _on_progress=None):
         raise backup_mod.BackupError("checksum mismatch")
 
     monkeypatch.setattr(backup_mod, "_verify", broken_verify)
@@ -144,6 +144,24 @@ def test_file_created_after_backup_is_not_lost(fake, detector, alpha):
     assert late.exists()
     assert not (fake.paths.projects_dir / "D--work-alpha" / f"{fc.S_OLD}.jsonl").exists()
     assert any(p == late.parent for p, _ in result.failed_files)  # dir not empty
+
+
+def test_verify_phase_reports_progress(fake, detector, alpha):
+    # The re-hash pass in backup._verify is the slowest part of a large delete
+    # (a second full read over every file) — without its own progress events
+    # the UI sits at "backup done" with no feedback for however long it takes.
+    phases = []
+
+    def on_progress(p):
+        phases.append((p.phase, p.done, p.total))
+
+    plan = build_session_plan(PlanMode.SINGLE, alpha, [fc.S_OLD])
+    _run(fake, detector, plan, on_progress=on_progress)
+
+    verify_events = [p for p in phases if p[0] == "verify"]
+    assert verify_events, "expected at least one 'verify' progress event"
+    assert verify_events[0][1] == 0
+    assert verify_events[-1][1] == verify_events[-1][2]  # done reaches total
 
 
 def test_cancel_stops_between_bundles(fake, detector, alpha):

@@ -384,9 +384,14 @@
           </div>
         </template>
 
-        <div x-show="preview?.typed_name_required">
+        <div x-show="preview?.typed_name_required" x-data="{ copied: false }">
           <label class="form-label small">
-            Nhập đúng tên project <code x-text="preview?.typed_name_required"></code> để bật nút Xoá
+            Nhập đúng tên project <code x-text="preview?.typed_name_required"></code>
+            <button type="button" class="btn btn-link btn-sm p-0 align-baseline"
+                    title="Sao chép tên project"
+                    @click="navigator.clipboard.writeText(preview?.typed_name_required || ''); copied = true; setTimeout(() => copied = false, 1500)"
+                    x-text="copied ? 'Đã copy' : 'Sao chép'"></button>
+            để bật nút Xoá
           </label>
           <input type="text" class="form-control form-control-sm" x-model="typedName"
                  :placeholder="preview?.typed_name_required">
@@ -411,7 +416,7 @@
         <h5 class="modal-title">Đang xoá</h5>
       </div>
       <div class="modal-body">
-        <p x-text="progress ? `${progress.phase === 'backup' ? 'Đang backup' : 'Đang xoá'} ${progress.done}/${progress.total} ${progress.current||''}` : 'Đang chuẩn bị…'"></p>
+        <p x-text="progress ? `${progress.phase === 'backup' ? 'Đang backup' : progress.phase === 'verify' ? 'Đang xác thực backup' : 'Đang xoá'} ${progress.done}/${progress.total} ${progress.current||''}` : 'Đang chuẩn bị…'"></p>
         <div class="progress">
           <div class="progress-bar" role="progressbar"
                :style="`width: ${progress && progress.total ? (progress.done/progress.total*100) : 0}%`"></div>
