@@ -1,6 +1,6 @@
 [project]
 name = "claude-tidy"
-version = "0.1.0"
+version = "0.1.1"
 description = "Safely clean up Claude Code session data and Claude Desktop cache on Windows."
 readme = "README.md"
 requires-python = ">=3.11"

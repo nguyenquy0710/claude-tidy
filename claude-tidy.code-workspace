@@ -7,5 +7,31 @@
     // 	"path": "C:\\Users\\nhquydev\\.flet"
     // }
   ],
-  "settings": {}
+  "settings": {
+    "files.exclude": {
+      "**/.vs": true,
+      "**/.svn": true,
+      "**/.git": true,
+      "**/.bin": true,
+      "**/.DS_Store": true,
+      "**/packages": true,
+      "**/node_modules": true,
+      "**/__pycache__": true,
+      "**/.venv": true,
+      "**/env": true,
+      "**/bin": true,
+      "**/obj": true,
+      "**/$RECYCLE.BIN": true,
+      "**/System Volume Information": true,
+      // Some other necessary configurations for your *.code-workspace
+      "**/.obsidian": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/analysis_results": true,
+      "**/.playwright-mcp": true,
+      "**/build": true,
+      "**/dist": false,
+      "**/logs": false,
+    }
+  }
 }
