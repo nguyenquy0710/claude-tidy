@@ -20,7 +20,14 @@ from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 
-datas = [("claude_tidy/webui/static", "claude_tidy/webui/static")]
+# "pyproject.toml" -> "." bundles it at the frozen app's base dir (mirrored
+# by sys._MEIPASS at runtime), so webui/api.py's get_version() can read the
+# real version back out of it — see that function's own comment for why this
+# reads pyproject.toml directly instead of via installed package metadata.
+datas = [
+    ("claude_tidy/webui/static", "claude_tidy/webui/static"),
+    ("pyproject.toml", "."),
+]
 binaries = []
 hiddenimports = []
 for pkg in ("webview", "clr_loader", "pythonnet"):

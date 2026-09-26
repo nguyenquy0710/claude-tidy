@@ -52,6 +52,7 @@ function app() {
     tabsLoaded: { sessions: false, cache: false, index: false, settings: false },
     statusLeft: "Đang quét…",
     statusRight: "",
+    version: "",
 
     // --- Sessions tab ---
     projects: [],
@@ -112,6 +113,7 @@ function app() {
           this.onRestoreDone({ error: e.detail.error });
       });
       await this.waitForPywebviewReady();
+      this.version = await api("get_version");
       await this.selectTab("sessions");
     },
 
