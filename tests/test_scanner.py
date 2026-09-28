@@ -131,9 +131,12 @@ def test_scan_cache_uses_allowlist_only(fake):
     groups = scan_cache(fake.paths)
     names = {g.name for g in groups}
     assert names == {"Desktop: Cache", "Desktop: GPUCache", "Desktop: logs",
-                     "Temp (%TEMP%\\claude)"}
+                     "Temp (%TEMP%\\claude)", "OpenCode: log", "OpenCode: snapshot",
+                     "OpenCode: tool-output", "OpenCode: storage"}
     all_paths = [p for g in groups for p in g.paths]
     assert not any("Local Storage" in p.parts or "vm_bundles" in p.parts for p in all_paths)
+    assert not any("opencode.db" in p.name or "auth.json" in p.name for p in all_paths)
+    assert not any(p.parts[-2] in ("worktree", "repos") for p in all_paths if len(p.parts) > 1)
     temp = next(g for g in groups if g.name.startswith("Temp"))
     assert temp.size_bytes == 100
     assert temp.file_count == 2  # tmp1.txt + tmp2.txt, per fixture
@@ -141,8 +144,20 @@ def test_scan_cache_uses_allowlist_only(fake):
     assert cache.file_count == 1
 
 
+def test_check_deletable_allows_opencode_cache_dirs_only(fake):
+    opencode = fake.paths.opencode_data_dir
+    for name in ("log", "snapshot", "tool-output", "storage"):
+        assert check_deletable(opencode / name, fake.paths) is None
+    for name in ("worktree", "repos", "delegations", "plans"):
+        assert check_deletable(opencode / name, fake.paths) is not None
+    assert check_deletable(opencode / "opencode.db", fake.paths) is not None
+    assert check_deletable(opencode / "auth.json", fake.paths) is not None
+    assert check_deletable(opencode, fake.paths) is not None
+
+
 def test_scan_handles_missing_directories(tmp_path):
     paths = ClaudePaths(claude_home=tmp_path / "none", desktop_dirs=(tmp_path / "nd",),
-                        temp_dir=tmp_path / "nt", app_dir=tmp_path / "app")
+                        temp_dir=tmp_path / "nt", app_dir=tmp_path / "app",
+                        opencode_data_dir=tmp_path / "no-opencode")
     assert scan_projects(paths) == []
     assert scan_cache(paths) == []

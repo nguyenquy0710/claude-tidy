@@ -60,7 +60,7 @@ def test_plan_single_and_multi_validation(fake):
 def test_cache_plan(fake):
     plan = build_cache_plan(scan_cache(fake.paths))
     assert plan.mode is PlanMode.CACHE
-    assert plan.size_bytes == 3 * 100 + 100
+    assert plan.size_bytes == 3 * 100 + 100 + 4 * 40  # Desktop + Temp + 4 OpenCode dirs
 
 
 @pytest.mark.parametrize(
@@ -79,7 +79,7 @@ def test_risk(activity, age_h, expected):
 
 def test_settings_roundtrip_and_defaults(tmp_path):
     paths = ClaudePaths(claude_home=tmp_path, desktop_dirs=(), temp_dir=tmp_path,
-                        app_dir=tmp_path / "app")
+                        app_dir=tmp_path / "app", opencode_data_dir=tmp_path / "opencode")
     s = load_settings(paths)
     assert s == Settings.defaults(paths)
     assert s.retention_days == 14 and s.maybe_active_minutes == 5 and s.recent_hours == 24
@@ -91,7 +91,7 @@ def test_settings_roundtrip_and_defaults(tmp_path):
 
 def test_settings_corrupt_file_falls_back(tmp_path):
     paths = ClaudePaths(claude_home=tmp_path, desktop_dirs=(), temp_dir=tmp_path,
-                        app_dir=tmp_path / "app")
+                        app_dir=tmp_path / "app", opencode_data_dir=tmp_path / "opencode")
     paths.app_dir.mkdir()
     paths.settings_file.write_text("{oops")
     assert load_settings(paths) == Settings.defaults(paths)

@@ -9,6 +9,7 @@ ENV_CLAUDE_HOME = "CLAUDE_TIDY_CLAUDE_HOME"
 ENV_DESKTOP_DIRS = "CLAUDE_TIDY_DESKTOP_DIRS"
 ENV_TEMP_DIR = "CLAUDE_TIDY_TEMP_DIR"
 ENV_APP_DIR = "CLAUDE_TIDY_APP_DIR"
+ENV_OPENCODE_DATA_DIR = "CLAUDE_TIDY_OPENCODE_DATA_DIR"
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,12 @@ class ClaudePaths:
     desktop_dirs: tuple[Path, ...]
     temp_dir: Path
     app_dir: Path
+    # OpenCode CLI (opencode.ai) data dir — a *separate* tool from Claude Code.
+    # Only its known regenerable cache-like subdirs are ever offered for
+    # deletion (see scanner.OPENCODE_CACHE_DIRS); opencode.db (the app's own
+    # session/message database) and its credential files are never touched —
+    # see claude_tidy/CLAUDE.md's OpenCode section for the full rationale.
+    opencode_data_dir: Path
 
     @property
     def projects_dir(self) -> Path:
@@ -59,6 +66,9 @@ class ClaudePaths:
             desktop_dirs=desktop_dirs,
             temp_dir=Path(env.get(ENV_TEMP_DIR) or temp / "claude"),
             app_dir=Path(env.get(ENV_APP_DIR) or local_appdata / "ClaudeTidy"),
+            opencode_data_dir=Path(
+                env.get(ENV_OPENCODE_DATA_DIR) or home / ".local" / "share" / "opencode"
+            ),
         )
 
 

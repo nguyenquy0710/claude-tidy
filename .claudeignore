@@ -15,3 +15,7 @@ tests/fixtures/**/tmp_*
 
 # Local backups if ever produced inside the repo during manual testing
 *.zip
+
+# Third-party frontend assets, downloaded and committed as-is (see
+# claude_tidy/webui/static/CLAUDE.md) — never generated/rebuilt by this repo
+claude_tidy/webui/static/vendor/

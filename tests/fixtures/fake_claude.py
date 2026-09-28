@@ -136,8 +136,10 @@ def build(tmp: Path) -> FakeClaude:
     home = tmp / "home" / ".claude"
     desktop = tmp / "appdata" / "Claude"
     temp = tmp / "temp" / "claude"
+    opencode = tmp / "home" / ".local" / "share" / "opencode"
     paths = ClaudePaths(claude_home=home, desktop_dirs=(desktop,), temp_dir=temp,
-                        app_dir=tmp / "localappdata" / "ClaudeTidy")
+                        app_dir=tmp / "localappdata" / "ClaudeTidy",
+                        opencode_data_dir=opencode)
 
     alpha = "D--work-alpha"
     _session(home, alpha, S_OLD, ALPHA_CWD, "Old refactor", age=10 * DAY)
@@ -190,6 +192,22 @@ def build(tmp: Path) -> FakeClaude:
 
     _write(temp / "D--work-alpha" / "tmp1.txt", "t" * 50)
     _write(temp / "E--other-beta" / "tmp2.txt", "t" * 50)
+
+    # OpenCode (opencode.ai) — a separate CLI tool. Only these 4 regenerable
+    # dirs are deletable; its SQLite session database and credentials are not.
+    for name in ("log", "snapshot", "tool-output", "storage"):
+        _write(opencode / name / "item", "o" * 40)
+    protected += [
+        _write(opencode / "opencode.db", "sqlite-bytes"),
+        _write(opencode / "opencode.db-wal", "wal-bytes"),
+        _write(opencode / "auth.json", "{\"token\": \"secret\"}"),
+        _write(opencode / "account.json", "{}"),
+        _write(opencode / "mcp-auth.json", "{}"),
+        # Undocumented internal dirs, deliberately excluded from the allowlist
+        # even though they live under the same managed root.
+        _write(opencode / "worktree" / "proj" / "file.txt", "real work?"),
+        _write(opencode / "repos" / "proj" / "file.txt", "real work?"),
+    ]
 
     return FakeClaude(root=tmp, paths=paths, probe=probe, outside_dir=outside,
                       protected=protected)

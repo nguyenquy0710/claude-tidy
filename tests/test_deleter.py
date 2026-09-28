@@ -213,12 +213,18 @@ def test_orphan_index_deleted_with_key_live_one_refused(fake, detector):
 
 def test_cache_delete_keeps_non_cache_and_link_target(fake, detector):
     result = _run(fake, detector, build_cache_plan(scan_cache(fake.paths)))
-    assert len(result.deleted) == 4
+    assert len(result.deleted) == 8  # 3 Desktop + 1 Temp + 4 OpenCode cache dirs
     desktop = fake.paths.desktop_dirs[0]
     assert not (desktop / "GPUCache").exists()
     assert (desktop / "Local Storage" / "leveldb" / "000.log").exists()
     assert (fake.outside_dir / "precious.bin").exists()
     assert list(fake.paths.temp_dir.iterdir()) == []
+    opencode = fake.paths.opencode_data_dir
+    assert not (opencode / "log").exists()
+    assert not (opencode / "snapshot").exists()
+    assert (opencode / "opencode.db").exists()
+    assert (opencode / "auth.json").exists()
+    assert (opencode / "worktree" / "proj" / "file.txt").exists()
 
 
 def test_every_execute_writes_one_oplog_line(fake, detector, alpha):
