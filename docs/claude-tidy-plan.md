@@ -10,6 +10,13 @@
 - Index session trong `~/.claude/sessions/`
 - Cache/log của Claude Desktop app (`%APPDATA%\Claude`)
 - Các file tạm trong `%TEMP%\claude`
+- Cache/log của **OpenCode CLI** (`~/.local/share/opencode`) — công cụ AI coding
+  CLI khác, không liên quan Claude Code, nhưng cũng tích luỹ dữ liệu đầy đĩa
+  theo thời gian. Chỉ 4 thư mục con tái tạo được (`log`, `snapshot`,
+  `tool-output`, `storage`) được đưa vào danh sách xoá; **không đụng tới**
+  `opencode.db` (SQLite chứa lịch sử session/message thật của OpenCode) hay
+  các file credential (`auth.json`, `account.json`, `mcp-auth.json`) — xem
+  `claude_tidy/core/CLAUDE.md` mục "OpenCode CLI cleanup" để biết lý do
 
 Bản viết lại bằng **Python**, build thành desktop app native cho Windows.
 
@@ -42,7 +49,7 @@ Bản viết lại bằng **Python**, build thành desktop app native cho Window
     - Xoá 1 session
     - Xoá các session đã tick (multi-select)
     - Xoá tất cả session của project (dùng Bootstrap `modal` để double-confirm — nhập tên project để xác nhận)
-- **Trang Cache/Temp** — nhóm cache Claude Desktop + `%TEMP%\claude`, cảnh báo nếu Claude Desktop đang chạy, xoá thật qua cùng pipeline
+- **Trang Cache/Temp** — nhóm cache Claude Desktop + `%TEMP%\claude` + cache OpenCode CLI (`log`/`snapshot`/`tool-output`/`storage`, không phải `opencode.db`), cảnh báo nếu Claude Desktop đang chạy, xoá thật qua cùng pipeline
 - **Trang Index mồ côi** — file `sessions/<pid>.json` của process đã tắt hoặc PID bị tái sử dụng; **xác nhận từng file riêng**, không có nút "xoá tất cả"
 - **Trang cấu hình (Settings)** — Bootstrap `form`:
   - Đường dẫn lưu backup (mặc định `%LOCALAPPDATA%\ClaudeTidy\backups\`)
@@ -154,5 +161,16 @@ Không còn câu hỏi mở. Các câu trước đây đã chốt (2026-09-25):
 - **Backup mặc định:** `%LOCALAPPDATA%\ClaudeTidy\backups\`, giữ 14 ngày rồi tự xoá; Settings cho đổi thư mục và tắt auto-xoá.
 - **WebView2:** giả định máy đã có sẵn; kiểm tra khi khởi động, thiếu thì báo kèm link tải; không đóng kèm bộ cài.
 - **Đóng gói:** `--onedir` (không `--onefile`) theo số đo cold-start.
+- **Phạm vi dọn dẹp OpenCode CLI (2026-09-28):** chỉ xoá 4 thư mục cache/log
+  tái tạo được (`log`, `snapshot`, `tool-output`, `storage`), tuyệt đối không
+  đụng tới `opencode.db` (SQLite chứa lịch sử session/message thật) hay các
+  file credential. Lý do: khác với Claude Code (mỗi session là 1 bộ file rời
+  rạc, allowlist theo shape file là đủ an toàn), OpenCode hiện đại lưu toàn bộ
+  session/message trong 1 file SQLite dùng chung — muốn xoá "1 session
+  OpenCode" sẽ phải chạy `DELETE` vào schema nội bộ chưa tài liệu hoá và có
+  thể đổi giữa các bản OpenCode, rủi ro cao hơn hẳn xoá nhầm 1 file. Việc đó
+  bị hoãn lại, cần thiết kế an toàn riêng nếu sau này thật sự cần, không làm
+  ngầm bằng cách mở rộng `OPENCODE_CACHE_DIRS`. Xem
+  `claude_tidy/core/CLAUDE.md` mục "OpenCode CLI cleanup".
 
 Chi tiết task/effort: [plans/2026-09-25-pywebview-ui-migration-planning.md](../plans/2026-09-25-pywebview-ui-migration-planning.md).

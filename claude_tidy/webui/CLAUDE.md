@@ -104,37 +104,8 @@ or written directly in JS. Keep both sides in sync when a field is added —
 
 ## Frontend conventions
 
-- User-facing strings are Vietnamese, short and imperative for actions (e.g.
-  "Xoá đã chọn") — matches the removed ttkbootstrap UI's tone.
-- **Alpine `x-show` + a Bootstrap `!important` display utility (`.d-flex`,
-  `.d-none`, `.d-block`, `.d-grid`) on the *same element* silently breaks.**
-  Bootstrap's utility sets `display: X !important`, which beats Alpine's
-  plain (non-`!important`) inline `display: none` — the element never
-  actually hides, even though the DOM's internal state looks correct on
-  inspection. Use the `x-show.important` modifier on any element that also
-  carries one of those classes. Two real instances of this shipped and were
-  caught by Playwright screenshot verification, not by reading the code: the
-  Sessions-tab wrapper and the Claude-Desktop-running alert in Cache/Temp —
-  see both in `static/index.html`.
-- The project sidebar's right-click context menu (`app.js`'s `projectMenu`
-  state, `openProjectMenu`/`openProjectFolder`/`copyProjectPath`/
-  `rescanProjectMenu`/`deleteAllProjectMenu`) is plain Alpine state, not a
-  Bootstrap component — it's positioned at the click coordinates and closed by
-  setting `projectMenu = null`. `rescanProjectMenu` patches just the one
-  changed project back into `projects`/`worktrees` in place
-  (`replaceProjectEverywhere`) rather than re-fetching the whole list; keep
-  that pattern for any future per-item refresh instead of calling
-  `list_projects()` again.
-- Index mồ côi has **no "select all"**, only per-row single selection — a
-  deliberate carry-over from the ttkbootstrap UI (roadmap decision 6.5: each
-  orphan file is confirmed individually, never bulk).
-- Risk badges are real rounded pills (`.ct-badge-danger/warning/safe` in
-  `app.css`) — the ttkbootstrap UI could only tag a whole row's color, not a
-  single cell; HTML doesn't have that limitation, so don't reintroduce a
-  flat-text badge.
-- `static/vendor/` assets are committed as downloaded files, not fetched at
-  build time — there is no npm/webpack step in this project. If you bump
-  Bootstrap or Alpine, replace the files in `static/vendor/` directly and
-  re-verify (Playwright against a stub `window.pywebview.api`, or a real
-  `webview` window — see the T33 spike pattern in the migration plan for how
-  to do the latter without touching a real `~/.claude`).
+The frontend (`static/index.html` + `static/app.js` + `static/app.css` +
+`static/vendor/`) has its own scope-specific guidance one level down — see
+[static/CLAUDE.md](static/CLAUDE.md) for the Alpine/Bootstrap `x-show`
+gotcha, the project sidebar context-menu pattern, selection-UX conventions,
+and the `vendor/` update policy.

@@ -38,10 +38,14 @@ reuse them instead of inventing new UUIDs:
 
 `fixture.protected` includes `memory/`, `settings*.json`, `.credentials.json`,
 `CLAUDE.md`, `commands/`, `skills/`, `agents/`, Desktop's non-cache dirs
-(`Local Storage`, `IndexedDB`, config json), and a junction (`vm_bundles`)
-pointing outside the tree entirely — any new denylist/allowlist behavior in
-`core/scanner.py` should add its counter-example here, not in an ad-hoc
-per-test fixture.
+(`Local Storage`, `IndexedDB`, config json), a junction (`vm_bundles`)
+pointing outside the tree entirely, and — for the OpenCode CLI root
+(`fake.paths.opencode_data_dir`) — `opencode.db`/`opencode.db-wal`,
+`auth.json`/`account.json`/`mcp-auth.json`, and the deliberately-unlisted
+`worktree/`/`repos/` dirs (see [core/CLAUDE.md](../claude_tidy/core/CLAUDE.md)'s
+"OpenCode CLI cleanup" section for why those two stay off the allowlist) —
+any new denylist/allowlist behavior in `core/scanner.py` should add its
+counter-example here, not in an ad-hoc per-test fixture.
 
 `make_junction()` falls back from a Windows directory junction to a symlink,
 and returns `False` if neither is supported on the current machine/permissions

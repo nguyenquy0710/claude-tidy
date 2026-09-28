@@ -56,7 +56,7 @@ def test_list_projects_and_sessions(app, fake):
 
 def test_scan_cache_and_orphan_index(app):
     cache = app.scan_cache()
-    assert len(cache["groups"]) == 4
+    assert len(cache["groups"]) == 8  # 3 Desktop + 1 Temp + 4 OpenCode cache dirs
     orphans = app.list_orphan_index()
     # Matches tests/test_activity.py::test_orphans_are_dead_or_reused_pids:
     # PID_REUSED, PID_DEAD, PID_CORRUPT — PID_LIVE and PID_DENIED are not orphans.

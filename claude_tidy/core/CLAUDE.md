@@ -12,9 +12,9 @@ at the point of deletion, not just when a plan is built.
 
 | Module | Responsibility |
 |---|---|
-| `paths.py` | `ClaudePaths` — resolves `~/.claude`, Claude Desktop's data dir(s) (including the MSIX `Packages\Claude_*\LocalCache\...` location), `%TEMP%\claude`, and this app's own `%LOCALAPPDATA%\ClaudeTidy`. Every root is overridable via `CLAUDE_TIDY_*` env vars — that's what makes the test suite safe. |
+| `paths.py` | `ClaudePaths` — resolves `~/.claude`, Claude Desktop's data dir(s) (including the MSIX `Packages\Claude_*\LocalCache\...` location), `%TEMP%\claude`, OpenCode's data dir (`opencode_data_dir`, default `~/.local/share/opencode` — see "OpenCode CLI cleanup" below), and this app's own `%LOCALAPPDATA%\ClaudeTidy`. Every root is overridable via `CLAUDE_TIDY_*` env vars — that's what makes the test suite safe. |
 | `models.py` | All shared dataclasses/enums: `Project`, `SessionBundle`, `IndexEntry`, `CacheGroup`, `DeleteTarget`, `DeletePlan`, `Preview`, `Progress`, `DeleteResult`. Add new cross-module state here, not as ad-hoc dicts. |
-| `scanner.py` | `check_deletable()` (the allowlist+denylist gate — see below), `scan_projects()` (groups session artifacts into `SessionBundle` by `sessionId`), `scan_cache()`, `count_messages()` (line count per session transcript — UI's "Tin nhắn" column). |
+| `scanner.py` | `check_deletable()` (the allowlist+denylist gate — see below), `scan_projects()` (groups session artifacts into `SessionBundle` by `sessionId`), `scan_cache()` (Claude Desktop *and* OpenCode cache dirs — one function, one `CacheGroup` model, no parallel scan path), `count_messages()` (line count per session transcript — UI's "Tin nhắn" column). |
 | `grouping.py` | Nests worktree projects under their parent (`group_projects`), and builds `DeletePlan`s (`build_session_plan`, `build_index_plan`, `build_cache_plan`). |
 | `usage.py` | `is_link()` (symlink/junction detection — used everywhere to avoid following links), disk usage helpers, `count_files()` (per-cache-group file count for the UI). |
 | `activity.py` | `ActivityDetector` — the active-session/PID-reuse logic; `orphan_state()` exposes *why* an index entry is orphaned (GONE vs REUSED) for the Index tab's "Lý do" column; `claude_desktop_pid()` for the Cache tab's lock warning. |
@@ -62,6 +62,39 @@ Symlinks/junctions (`usage.is_link()`) are never followed for sizing or
 recursive collection — `~/.claude/agents`, `skills`, and Desktop's
 `vm_bundles` are real examples of links pointing outside anything this app
 may touch.
+
+## OpenCode CLI cleanup
+
+OpenCode (opencode.ai) is a separate AI coding CLI, unrelated to Claude Code
+except that it's another tool that accumulates disk-filling local state — a
+generic "OpenCode: <dir>" cache group added alongside Desktop's cache groups
+in the same `scan_cache()`, going through the same `deleter.execute()`
+pipeline (root `CLAUDE.md` rule 11). Two things make this root fundamentally
+different from `~/.claude` and worth re-reading before touching it:
+
+- **Its real session/message history is a SQLite database
+  (`opencode.db`/`-wal`/`-shm`), not files this app scans.** There is no
+  per-session bundle to allowlist the way `_allowed_in_claude_home` does —
+  `OPENCODE_CACHE_DIRS` only ever allows 4 named top-level dirs
+  (`log`, `snapshot`, `tool-output`, `storage`), checked by
+  `_allowed_in_opencode()`, and the db file plus `auth.json`/`account.json`/
+  `mcp-auth.json` are additionally hard-denylisted in `PROTECTED_PATTERNS` as
+  defense in depth. Don't extend this to "delete one OpenCode session" —
+  that would mean issuing `DELETE`s against a live, undocumented,
+  version-drifting internal schema while the app may hold it open in WAL
+  mode, a materially different (and riskier) failure mode than an
+  over-broad filesystem delete. If that's ever wanted, it needs its own
+  design doc and its own explicit sign-off, not a quiet extension of
+  `OPENCODE_CACHE_DIRS`.
+- **Other top-level dirs under the same root (`repos`, `delegations`,
+  `plans`, `worktree`) are deliberately left out of the allowlist** — their
+  contents aren't well enough understood (e.g. `worktree` looks like it
+  could hold real git worktrees for background/sub-agent tasks) to prove
+  they're safe to offer for deletion. Don't add a name to
+  `OPENCODE_CACHE_DIRS` without confirming on a real install (`opencode
+  debug paths`, then inspect what's actually in it) that it's genuinely
+  regenerable, the same bar `DESKTOP_CACHE_DIRS` already meets for Claude
+  Desktop.
 
 ## Process/activity detection
 

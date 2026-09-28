@@ -112,6 +112,22 @@ destroys a Claude Code session the user may still be using.
     an `ACTIVE` session or bypass the typed-name check. See
     [claude_tidy/webui/CLAUDE.md](claude_tidy/webui/CLAUDE.md) for the full
     contract.
+11. **OpenCode CLI cleanup is scoped to regenerable files only, never its
+    database.** OpenCode (opencode.ai) is a *second, unrelated* tool this app
+    also offers to clean up, surfaced in the same Cache/Temp tab
+    (`ClaudePaths.opencode_data_dir`, `scanner.OPENCODE_CACHE_DIRS`). Its
+    authoritative session/message history lives in a SQLite database
+    (`opencode.db`) — this app never reads or writes that file, and never
+    will without a separate, explicit safety design (there's no filesystem
+    bundle to allowlist the way Claude Code sessions have; a wrong DELETE
+    against a live app's DB is a different, higher-risk failure mode than
+    deleting an over-broad file). Only 4 well-known regenerable subdirs
+    (`log`, `snapshot`, `tool-output`, `storage`) are ever offered for
+    deletion; `opencode.db*`, `auth.json`, `account.json`, `mcp-auth.json`,
+    and any other subdir (`repos`, `delegations`, `plans`, `worktree` — not
+    well enough understood to allowlist) are refused by
+    `scanner.check_deletable()`/`PROTECTED_PATTERNS`, same denylist mechanism
+    as rule 5, not a separate one.
 
 ## Testing requirements
 

@@ -7,6 +7,7 @@ from claude_tidy.core.paths import (
     ENV_APP_DIR,
     ENV_CLAUDE_HOME,
     ENV_DESKTOP_DIRS,
+    ENV_OPENCODE_DATA_DIR,
     ENV_TEMP_DIR,
     ClaudePaths,
 )
@@ -24,9 +25,11 @@ def _isolate_env(tmp_path_factory, monkeypatch):
     monkeypatch.setenv(ENV_DESKTOP_DIRS, str(sandbox / "desktop"))
     monkeypatch.setenv(ENV_TEMP_DIR, str(sandbox / "temp-claude"))
     monkeypatch.setenv(ENV_APP_DIR, str(sandbox / "app"))
+    monkeypatch.setenv(ENV_OPENCODE_DATA_DIR, str(sandbox / "opencode"))
     monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
     paths = ClaudePaths.from_env()
     assert str(paths.claude_home).startswith(str(sandbox))
+    assert str(paths.opencode_data_dir).startswith(str(sandbox))
 
 
 @pytest.fixture

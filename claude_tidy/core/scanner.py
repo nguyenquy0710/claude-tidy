@@ -32,6 +32,13 @@ PROTECTED_PATTERNS = (
     "plugins",
     "hooks",
     "rules",
+    # OpenCode CLI: its session/message database and credentials, never
+    # eligible for deletion even though they live under the same root as the
+    # regenerable cache dirs in OPENCODE_CACHE_DIRS below.
+    "opencode.db*",
+    "auth.json",
+    "account.json",
+    "mcp-auth.json",
 )
 
 # Only well-known, regenerable Chromium/Electron cache dirs. Everything else in
@@ -46,6 +53,16 @@ DESKTOP_CACHE_DIRS = (
     "Crashpad",
     "logs",
 )
+
+# OpenCode (opencode.ai) keeps its authoritative session/message history in
+# opencode.db (a SQLite file, not scanned or touched by this app at all — see
+# claude_tidy/CLAUDE.md). These four subdirs are the only OpenCode-owned
+# locations this app ever offers to delete: transient/regenerable artifacts
+# (rotated logs, per-message tool-call output, diff caches, content-addressed
+# file snapshots) that OpenCode itself documents as safe to lose. Deliberately
+# excludes "repos", "delegations", "plans", "worktree" — their contents are
+# not well enough understood to allowlist safely.
+OPENCODE_CACHE_DIRS = ("log", "snapshot", "tool-output", "storage")
 
 HEAD_BYTES = 256 * 1024
 TAIL_BYTES = 64 * 1024
@@ -63,6 +80,7 @@ def check_deletable(path: Path, paths: ClaudePaths) -> str | None:
     for root, allowed in (
         (paths.claude_home, _allowed_in_claude_home),
         (paths.temp_dir, lambda rel: len(rel) == 1),
+        (paths.opencode_data_dir, _allowed_in_opencode),
         *((d, _allowed_in_desktop) for d in paths.desktop_dirs),
     ):
         rel = _relative_parts(p, Path(os.path.abspath(root)))
@@ -96,6 +114,10 @@ def _allowed_in_claude_home(rel: tuple[str, ...]) -> bool:
 
 def _allowed_in_desktop(rel: tuple[str, ...]) -> bool:
     return len(rel) == 1 and rel[0] in DESKTOP_CACHE_DIRS
+
+
+def _allowed_in_opencode(rel: tuple[str, ...]) -> bool:
+    return len(rel) == 1 and rel[0] in OPENCODE_CACHE_DIRS
 
 
 def _session_id_of(name: str) -> str | None:
@@ -239,4 +261,10 @@ def scan_cache(paths: ClaudePaths) -> list[CacheGroup]:
             groups.append(CacheGroup(name="Temp (%TEMP%\\claude)", root=paths.temp_dir,
                                      paths=children, size_bytes=sum(map(path_size, children)),
                                      file_count=count_files(children)))
+    for name in OPENCODE_CACHE_DIRS:
+        d = paths.opencode_data_dir / name
+        if d.is_dir() and not is_link(d):
+            groups.append(CacheGroup(name=f"OpenCode: {name}", root=paths.opencode_data_dir,
+                                     paths=[d], size_bytes=path_size(d),
+                                     file_count=count_files([d])))
     return groups
