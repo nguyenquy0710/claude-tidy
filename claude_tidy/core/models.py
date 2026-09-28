@@ -87,6 +87,7 @@ class CacheGroup:
     name: str
     root: Path
     paths: list[Path]
+    source: str = ""
     size_bytes: int = 0
     file_count: int = 0
 
