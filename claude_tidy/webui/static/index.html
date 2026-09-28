@@ -213,18 +213,27 @@
         <th>Dung lượng</th>
       </tr>
     </thead>
-    <tbody>
-      <template x-for="g in cacheGroups" :key="g.id">
-        <tr>
-          <td><input type="checkbox" class="form-check-input" :checked="!!cacheChecked[g.id]"
-                     @change="cacheChecked[g.id] = !cacheChecked[g.id]"></td>
-          <td x-text="g.name"></td>
-          <td class="text-muted small" x-text="g.root"></td>
-          <td x-text="g.file_count"></td>
-          <td x-text="g.size_human"></td>
+    <template x-for="group in cacheGroupsBySource" :key="group.source">
+      <tbody>
+        <tr class="table-light">
+          <td><input type="checkbox" class="form-check-input"
+                     :checked="isSourceFullyChecked(group.groups)"
+                     @change="toggleSourceChecked(group.groups)"></td>
+          <td colspan="3" class="fw-semibold" x-text="group.source"></td>
+          <td class="text-muted small" x-text="humanSize(group.size_bytes)"></td>
         </tr>
-      </template>
-    </tbody>
+        <template x-for="g in group.groups" :key="g.id">
+          <tr>
+            <td><input type="checkbox" class="form-check-input" :checked="!!cacheChecked[g.id]"
+                       @change="cacheChecked[g.id] = !cacheChecked[g.id]"></td>
+            <td x-text="g.name"></td>
+            <td class="text-muted small" x-text="g.root"></td>
+            <td x-text="g.file_count"></td>
+            <td x-text="g.size_human"></td>
+          </tr>
+        </template>
+      </tbody>
+    </template>
   </table>
 
   <div class="d-flex justify-content-between align-items-center">

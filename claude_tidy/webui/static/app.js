@@ -294,6 +294,33 @@ function app() {
         .reduce((n, g) => n + g.size_bytes, 0);
     },
 
+    // Nhóm cacheGroups theo "loại cli" (Claude Desktop / Claude Code / OpenCode
+    // CLI / ...) cho UI — giữ thứ tự xuất hiện đầu tiên của mỗi loại, không
+    // sort lại theo alphabet để tránh nhảy vị trí giữa các lần quét.
+    get cacheGroupsBySource() {
+      const order = [];
+      const bySource = {};
+      for (const g of this.cacheGroups) {
+        const source = g.source || "Khác";
+        if (!bySource[source]) { bySource[source] = []; order.push(source); }
+        bySource[source].push(g);
+      }
+      return order.map((source) => ({
+        source,
+        groups: bySource[source],
+        size_bytes: bySource[source].reduce((n, g) => n + g.size_bytes, 0),
+      }));
+    },
+
+    isSourceFullyChecked(groups) {
+      return groups.length > 0 && groups.every((g) => this.cacheChecked[g.id]);
+    },
+
+    toggleSourceChecked(groups) {
+      const checkAll = !this.isSourceFullyChecked(groups);
+      for (const g of groups) this.cacheChecked[g.id] = checkAll;
+    },
+
     async deleteCacheChecked() {
       const ids = Object.keys(this.cacheChecked).filter((k) => this.cacheChecked[k]);
       await this.startPreview({ mode: "cache", group_ids: ids });

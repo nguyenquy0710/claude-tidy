@@ -254,17 +254,19 @@ def scan_cache(paths: ClaudePaths) -> list[CacheGroup]:
             d = desktop / name
             if d.is_dir() and not is_link(d):
                 groups.append(CacheGroup(name=f"Desktop: {name}", root=desktop, paths=[d],
-                                         size_bytes=path_size(d), file_count=count_files([d])))
+                                         source="Claude Desktop", size_bytes=path_size(d),
+                                         file_count=count_files([d])))
     if paths.temp_dir.is_dir() and not is_link(paths.temp_dir):
         children = sorted(paths.temp_dir.iterdir())
         if children:
             groups.append(CacheGroup(name="Temp (%TEMP%\\claude)", root=paths.temp_dir,
-                                     paths=children, size_bytes=sum(map(path_size, children)),
+                                     paths=children, source="Claude Code",
+                                     size_bytes=sum(map(path_size, children)),
                                      file_count=count_files(children)))
     for name in OPENCODE_CACHE_DIRS:
         d = paths.opencode_data_dir / name
         if d.is_dir() and not is_link(d):
             groups.append(CacheGroup(name=f"OpenCode: {name}", root=paths.opencode_data_dir,
-                                     paths=[d], size_bytes=path_size(d),
+                                     paths=[d], source="OpenCode CLI", size_bytes=path_size(d),
                                      file_count=count_files([d])))
     return groups

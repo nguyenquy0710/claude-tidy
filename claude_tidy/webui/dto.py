@@ -62,6 +62,7 @@ def cache_group_to_dict(g: CacheGroup) -> dict:
         "id": g.name,
         "name": g.name,
         "root": str(g.root),
+        "source": g.source,
         "file_count": g.file_count,
         "size_bytes": g.size_bytes,
         "size_human": human_size(g.size_bytes),

@@ -142,6 +142,10 @@ def test_scan_cache_uses_allowlist_only(fake):
     assert temp.file_count == 2  # tmp1.txt + tmp2.txt, per fixture
     cache = next(g for g in groups if g.name == "Desktop: Cache")
     assert cache.file_count == 1
+    by_name = {g.name: g.source for g in groups}
+    assert by_name["Desktop: Cache"] == "Claude Desktop"
+    assert by_name["Temp (%TEMP%\\claude)"] == "Claude Code"
+    assert by_name["OpenCode: log"] == "OpenCode CLI"
 
 
 def test_check_deletable_allows_opencode_cache_dirs_only(fake):
