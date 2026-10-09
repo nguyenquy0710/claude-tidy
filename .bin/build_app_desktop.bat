@@ -59,5 +59,17 @@ if errorlevel 1 (
 
 echo [INFO] Build complete: dist\claude-tidy\claude-tidy.exe
 
+set "ZIP_PATH=dist\claude-tidy-%NEW_VERSION%.zip"
+echo [INFO] Packaging build into %ZIP_PATH%...
+if exist "%ZIP_PATH%" del /q "%ZIP_PATH%"
+powershell -NoProfile -Command "Compress-Archive -Path 'dist\claude-tidy' -DestinationPath '%ZIP_PATH%' -CompressionLevel Optimal"
+if errorlevel 1 (
+    echo [ERROR] Failed to create zip archive.
+    call .venv\Scripts\deactivate.bat
+    pause
+    exit /b 1
+)
+echo [INFO] Zip created: %ZIP_PATH%
+
 call .venv\Scripts\deactivate.bat
 pause

@@ -12,7 +12,7 @@
       "**/.vs": true,
       "**/.svn": true,
       "**/.git": true,
-      "**/.bin": true,
+      "**/.bin": false,
       "**/.DS_Store": true,
       "**/packages": true,
       "**/node_modules": true,
